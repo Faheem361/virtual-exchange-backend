@@ -5,7 +5,7 @@ const CoinList = require("../../models/CoinList");
 const ApiKeysModel = require("../../models/ApiKeys");
 const ApiRequest = require("../../models/ApiRequests");
 
-const getWallet = async function (req, res) {
+const getWalletBalance = async function (req, res) {
   var api_key_result = req.body.api_key;
 
   let api_result = await authFile.apiKeyChecker(api_key_result);
@@ -32,34 +32,32 @@ const getWallet = async function (req, res) {
       return;
     }
   }
-
-  var _wallets = await Wallet.find({
+  let coin = await CoinList.findOne({ symbol: req.body.symbol, status: 1 });
+  let id = coin._id.toString();
+  console.log("id", id);
+  var _wallets = await Wallet.findOne({
     user_id: req.body.user_id,
+    coin_id: id,
   }).exec();
-
-  var wallets = new Array();
-
-  for (var i = 0; i < _wallets.length; i++) {
-    let item = _wallets[i];
-
-    let coinInfo = await CoinList.findOne({ _id: item.coin_id }).exec();
-
-    if (coinInfo == null) continue;
-
-    if (coinInfo.name == "Margin") continue;
-
-    wallets.push({
-      id: item._id,
-      coin_id: item.coin_id,
-      balance: item.amount,
-      symbolName: coinInfo.symbol + "/USDT",
-      symbol: coinInfo.symbol,
-      name: coinInfo.name,
-      icon: coinInfo.image_url,
+  console.log("_wallets", _wallets);
+  if (!_wallets)
+    return res.json({
+      status: "Success",
+      showableMessage: "Coin not found in wallet",
+      message: "coin_not_found",
     });
-  }
+  let wallets = {
+    id: _wallets._id,
+    coin_id: _wallets.coin_id,
+    balance: _wallets.amount,
+    symbolName: coin.symbol + "/USDT",
+    symbol: coin.symbol,
+    name: coin.name,
+    icon: coin.image_url,
+  };
+  console.log("wallets", wallets);
 
   res.json({ status: "success", showableMessage: "success", data: wallets });
 };
 
-module.exports = getWallet;
+module.exports = getWalletBalance;

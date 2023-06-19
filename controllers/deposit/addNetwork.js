@@ -1,9 +1,18 @@
-const Wallet = require("../../models/Wallet");
-const WalletAddress = require("../../models/WalletAddress");
-const CoinNetworkOption = require("../../models/CoinNetworkOption");
 const Network = require("../../models/Network");
 
-const addNetwork = (req, res) => {
+const addNetwork = async (req, res) => {
+  const check = await Network.findOne({
+    name: req.body.name,
+    symbol: req.body.symbol,
+  }).exec();
+
+  if (check != null) {
+    return res.json({
+      status: "success",
+      showablemessage: "Network already added",
+      data: "Network already added",
+    });
+  }
   const newData = new Network({
     name: req.body.name,
     symbol: req.body.symbol,
@@ -11,7 +20,11 @@ const addNetwork = (req, res) => {
   });
 
   newData.save().then((data) => {
-    res.json({ status: "success", message: "data_added" });
+    return res.json({
+      status: "success",
+      showablemessage: "data_added",
+      data: data,
+    });
   });
 };
 

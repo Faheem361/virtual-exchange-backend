@@ -16,13 +16,8 @@ const AddLimitSellOrder = require("../../Functions/Spot/Order/add_limit_sell_ord
 const AddStopLimitBuyOrder = require("../../Functions/Spot/Order/add_stop_limit_buy_order");
 const AddStopLimitSellOrder = require("../../Functions/Spot/Order/add_stop_limit_sell_order");
 
-
-
-
-
 const addOrders = async function (req, res) {
   try {
-
     var api_key_result = req.body.api_key;
 
     let api_result = await authFile.apiKeyChecker(api_key_result);
@@ -33,11 +28,10 @@ const addOrders = async function (req, res) {
 
       checkApiKeys = await ApiKeysModel.findOne({
         api_key: api_key_result,
-        trade: "1"
+        trade: "1",
       }).exec();
 
       if (checkApiKeys != null) {
-
         apiRequest = new ApiRequest({
           api_key: api_key_result,
           request: "addOrders",
@@ -45,8 +39,7 @@ const addOrders = async function (req, res) {
           user_id: checkApiKeys.user_id,
         });
         await apiRequest.save();
-      }
-      else {
+      } else {
         res.json({ status: "fail", message: "Forbidden 403" });
         return;
       }
@@ -56,24 +49,30 @@ const addOrders = async function (req, res) {
     let amount = req.body.amount;
 
     var getPair = await Pairs.findOne({ name: req.body.pair_name }).exec();
-
+    console.log("getPair", getPair);
     if (getPair == null || getPair == undefined || getPair == "") {
-      return res.json({ status: "fail", message: "pair_not_found" });
+      return res.json({
+        status: "fail",
+        showableMessage: "Pair not found",
+        message: "pair_not_found",
+      });
     }
 
-
-
     if (amount <= 0 || percent <= 0) {
-      res.json({ status: "fail", message: "invalid_amount" });
+      res.json({
+        status: "fail",
+        showableMessage: "Invalid Amount",
+        message: "invalid_amount",
+      });
       return;
     }
 
     var urlPair = req.body.pair_name.replace("/", "");
-    let url =
-      'http://global.oxhain.com:8542/price?symbol=' + urlPair;
-    let result = await axios(url);
-    console.log(result.data)
-    var price = result.data.data.ask;
+    // let url = "http://global.oxhain.com:8542/price?symbol=" + urlPair;
+    // let result = await axios(url);
+    // console.log(result.data);
+    // var price = result.data.data.ask;
+    // var price = 250.27;
 
     let target_price = req.body.target_price ?? 0.0;
 
@@ -96,7 +95,7 @@ const addOrders = async function (req, res) {
     }
 
     //MARKET ORDERS
-    if (req.body.type == 'market') {
+    if (req.body.type == "market") {
       if (req.body.method == "buy") {
         return await AddMarketBuyOrder(req, res, getPair, price);
       } else if (req.body.method == "sell") {
@@ -105,67 +104,131 @@ const addOrders = async function (req, res) {
     }
 
     //LIMIT ORDERS
-    if (req.body.type == 'limit') {
-
-      if (req.body.target_price == undefined || req.body.target_price == null || req.body.target_price == "") {
-        return res.json({ status: "fail", message: "Please enter target price" });
+    if (req.body.type == "limit") {
+      if (
+        req.body.target_price == undefined ||
+        req.body.target_price == null ||
+        req.body.target_price == ""
+      ) {
+        return res.json({
+          status: "fail",
+          showableMessage: "Please enter target price",
+          message: "Please enter target price",
+        });
       }
       if (req.body.method == "buy") {
-        if (target_price >= price) {
-          return await AddMarketBuyOrder(req, res, getPair, target_price);
+        // if (target_price >= price) {
+        if (target_price) {
+          // return await AddMarketBuyOrder(req, res, getPair, target_price);
+          return await AddLimitBuyOrder(
+            req,
+            res,
+            getPair,
+            api_result,
+            apiRequest
+          );
         } else {
-          return await AddLimitBuyOrder(req, res, getPair, api_result, apiRequest);
+          return await AddLimitBuyOrder(
+            req,
+            res,
+            getPair,
+            api_result,
+            apiRequest
+          );
         }
-
       } else if (req.body.method == "sell") {
-        if (target_price <= price) {
-          return await AddMarketSellOrder(req, res, getPair, target_price);
+        // if (target_price <= price) {
+        if (target_price) {
+          // return await AddMarketSellOrder(req, res, getPair, target_price);
+          return await AddLimitSellOrder(
+            req,
+            res,
+            getPair,
+            api_result,
+            apiRequest
+          );
         } else {
-          return await AddLimitSellOrder(req, res, getPair, api_result, apiRequest);
+          return await AddLimitSellOrder(
+            req,
+            res,
+            getPair,
+            api_result,
+            apiRequest
+          );
         }
       }
     }
 
     //STOP LIMIT ORDERS
-    if (req.body.type == 'stop_limit') {
-      if (req.body.stop_limit == undefined || req.body.stop_limit == null || req.body.stop_limit == "") {
-        res.json({ status: "fail", message: "Please enter stop limit" });
+    if (req.body.type == "stop_limit") {
+      if (
+        req.body.stop_limit == undefined ||
+        req.body.stop_limit == null ||
+        req.body.stop_limit == ""
+      ) {
+        res.json({
+          status: "fail",
+          showableMessage: "Please enter stop limit",
+          message: "Please enter stop limit",
+        });
         return;
       }
 
-      if (req.body.target_price == undefined || req.body.target_price == null || req.body.target_price == "") {
-        res.json({ status: "fail", message: "Please enter target price" });
+      if (
+        req.body.target_price == undefined ||
+        req.body.target_price == null ||
+        req.body.target_price == ""
+      ) {
+        res.json({
+          status: "fail",
+          showableMessage: "Please enter target price",
+          message: "Please enter target price",
+        });
         return;
       }
 
       if (req.body.stop_limit <= 0) {
-        res.json({ status: "fail", message: "Please enter stop limit" });
+        res.json({
+          status: "fail",
+          showableMessage: "Please enter stop limit",
+          message: "Please enter stop limit",
+        });
         return;
       }
 
       if (req.body.method == "buy") {
-        return await AddStopLimitBuyOrder(req,res,getPair, api_result, apiRequest, price);
+        return await AddStopLimitBuyOrder(
+          req,
+          res,
+          getPair,
+          api_result,
+          apiRequest,
+          price
+        );
+      } else if (req.body.method == "sell") {
+        return await AddStopLimitSellOrder(
+          req,
+          res,
+          getPair,
+          api_result,
+          apiRequest,
+          price
+        );
       }
-
-      else if (req.body.method == "sell") {
-        return await AddStopLimitSellOrder(req,res,getPair, api_result, apiRequest, price);
-      }
-
-
     }
-
-
   } catch (err) {
     console.log(err);
-    res.json({ status: "fail", message: "unknow_error" });
+    res.json({
+      status: "fail",
+      showableMessage: "unknown error",
+      message: "unknow_error",
+    });
   }
 };
 function splitLengthNumber(q) {
-  return q.toString().length > 10 ? parseFloat(q.toString().substring(0, 10)) : q;
+  return q.toString().length > 10
+    ? parseFloat(q.toString().substring(0, 10))
+    : q;
 }
 
 module.exports = addOrders;
-
-
-
-
