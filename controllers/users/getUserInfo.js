@@ -43,19 +43,32 @@ const getUserInfo = async function (req, res) {
             city: user["city"],
             country: user["country"],
             address: user["address"],
+            twofa: user["twofa"],
             verificationStatus: verificationStatus,
           },
         });
       }
 
       if (status == 0) {
-        res.json({ status: "fail", message: "account_not_activated", showableMessage: "Account not Activated" });
+        res.json({
+          status: "fail",
+          message: "account_not_activated",
+          showableMessage: "Account not Activated",
+        });
       }
     } else {
-      res.json({ status: "fail", message: "login_failed", showableMessage: "Login Failed" });
+      res.json({
+        status: "fail",
+        message: "login_failed",
+        showableMessage: "Login Failed",
+      });
     }
   } else {
-    res.json({ status: "fail", message: "403 Forbidden", showableMessage: "403 Forbidden" });
+    res.json({
+      status: "fail",
+      message: "403 Forbidden",
+      showableMessage: "403 Forbidden",
+    });
   }
 };
 

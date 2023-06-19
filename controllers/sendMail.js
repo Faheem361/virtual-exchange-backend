@@ -1,23 +1,28 @@
-
 const User = require("../models/User");
 const MailVerification = require("../models/MailVerification");
 var authFile = require("../auth.js");
 var mailer = require("../mailer.js");
 
 const sendMail = async function (req, res) {
-
   let newMail = "";
-  if (req.body.newMail != null && req.body.newMail != "" && req.body.newMail != undefined) {
+  if (
+    req.body.newMail != null &&
+    req.body.newMail != "" &&
+    req.body.newMail != undefined
+  ) {
     newMail = req.body.newMail;
     let user = await User.findOne({
       email: newMail,
     }).exec();
 
     if (user != null) {
-      res.json({ status: "fail", message: "email_already_exist", showableMessage: "Email already exist" });
+      res.json({
+        status: "fail",
+        message: "email_already_exist",
+        showableMessage: "Email already exist",
+      });
       return;
     }
-
   }
   var user_id = req.body.user_id;
   var api_key_result = req.body.api_key;
@@ -32,16 +37,26 @@ const sendMail = async function (req, res) {
 
     if (user != null) {
       if (user.status == "1" || user.status == "5") {
-      }
-      else {
-        return res.json({ status: "fail", message: "user_not_found", showableMessage: "User not found" });
+      } else {
+        return res.json({
+          status: "fail",
+          message: "user_not_found",
+          showableMessage: "User not found",
+        });
       }
       var pin = Math.floor(100000 + Math.random() * 900000);
 
       if (reason == "change_email_new") {
-
-        if (req.body.newMail == "" || req.body.newMail == null || req.body.newMail == undefined) {
-          return res.json({ status: "fail", message: "email_not_found", showableMessage: "Email not found" });
+        if (
+          req.body.newMail == "" ||
+          req.body.newMail == null ||
+          req.body.newMail == undefined
+        ) {
+          return res.json({
+            status: "fail",
+            message: "email_not_found",
+            showableMessage: "Email not found",
+          });
         }
 
         let check = await MailVerification.findOne({
@@ -65,7 +80,7 @@ const sendMail = async function (req, res) {
         if (check != null) {
           await MailVerification.findOneAndUpdate(
             { user_id: user["_id"], reason: "change_email_new" },
-            { pin: pin, status: 0 },
+            { pin: pin, status: 0 }
           );
         } else {
           newPin = new MailVerification({
@@ -77,13 +92,15 @@ const sendMail = async function (req, res) {
           newPin.save();
         }
 
-        res.json({ status: "success", data: "mail_send", showableMessage: "Mail send" });
-      }
-      else {
-
+        res.json({
+          status: "success",
+          data: "mail_send",
+          showableMessage: "Mail send",
+        });
+      } else {
         mailer.sendMail(
           user["email"],
-          "Oxhain verification",
+          "Virtual verification",
           "Pin : " + pin,
           function (err, data) {
             if (err) {

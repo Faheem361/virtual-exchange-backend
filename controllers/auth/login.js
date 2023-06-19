@@ -26,7 +26,7 @@ const ApiRequest = require("../../models/ApiRequests");
 const ApiKeysModel = require("../../models/ApiKeys");
 const AITradeWalletModel = require("../../models/AITradeWallet");
 const mailer = require("../../mailer");
-
+const Web3 = require("web3");
 const SMSVerificationModel = require("../../models/SMSVerification");
 const MailVerificationModel = require("../../models/MailVerification");
 
@@ -39,7 +39,6 @@ const { getToken } = require("../../auth");
 const MarginWalletId = "62ff3c742bebf06a81be98fd";
 
 const login = async (req, res) => {
-  console.log("login", req.body);
   let mailVerificationSent = false;
   let smsVerificationSent = false;
 
@@ -126,7 +125,6 @@ const login = async (req, res) => {
       user = await User.findOne({
         email: req.body.user,
       }).exec();
-      console.log("user", user);
       if (user) {
         user = await User.findOne({
           email: req.body.user,
@@ -189,7 +187,6 @@ const login = async (req, res) => {
         pin: pin,
         status: "1",
       });
-
       let smsVerifyCheck = await RegisterSMS.findOne({
         phone_number: user.phone_number,
         pin: pin,
@@ -1150,7 +1147,6 @@ const login = async (req, res) => {
       }).exec();
 
       console.log("User: " + user._id);
-      console.log("Login Loglar: " + loginLogCheck);
       if (loginLogCheck == null) {
         console.log("Login Logu Yok");
         //burada pin göndereceğiz
@@ -1180,7 +1176,6 @@ const login = async (req, res) => {
             await newMailVerification.save();
           }
 
-          console.log("Mail Gönderildi");
           mailVerificationSent = true;
           await mailer.sendMail(
             user.email,
@@ -1255,8 +1250,9 @@ const login = async (req, res) => {
 
       if (status == "1") {
         let coins = await CoinList.find({ status: 1 }).exec();
-
+        console.log("coins", coins);
         let networks = await Network.find({ status: 1 }).exec();
+        console.log("networks", networks);
 
         for (let x = 0; x < networks.length; x++) {
           let walletAddressCheck = await WalletAddress.findOne({
@@ -1274,11 +1270,16 @@ const login = async (req, res) => {
               address = walletTest.data.data.address;
             }
 
+            console.log("networks[x].symbol", networks[x].symbol);
+
             if (networks[x].symbol === "BSC") {
-              let url = "http://" + process.env.BSC20HOST + "/create_address";
-              let walletTest = await axios.post(url);
-              privateKey = walletTest.data.data.privateKey;
-              address = walletTest.data.data.address;
+              // let url = "http://" + process.env.BSC20HOST + "/create_address";
+              // let walletTest = await axios.post(url);
+              const web3 = new Web3("https://bsc-dataseed.binance.org/");
+              let walletTest = await web3.eth.accounts.create();
+              console.log("wallet", walletTest);
+              privateKey = walletTest.privateKey;
+              address = walletTest.address;
             }
 
             if (networks[x].symbol === "TRC") {

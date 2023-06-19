@@ -25,11 +25,11 @@ function verifyToken(pin, twofa) {
 }
 
 const getToken = (user) => {
-  return jwt.sign(user, 'secret');
+  return jwt.sign(user, "secret");
 };
 
 module.exports = {
   apiKeyChecker: apiKeyChecker,
   verifyToken: verifyToken,
-  getToken
+  getToken,
 };

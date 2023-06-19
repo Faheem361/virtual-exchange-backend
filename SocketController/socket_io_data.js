@@ -3,7 +3,7 @@ const https = require("https");
 const WebSocket = require("ws");
 const WebSocketServer = require("ws").Server;
 const socketio = require("socket.io");
-var fs = require('fs');
+var fs = require("fs");
 const CheckLogoutDevice = require("./device/check_logout_device");
 const SpotOpenOrders = require("./trade/spot/spot_open_orders");
 const SpotOrderHistory = require("./trade/spot/spot_order_history");
@@ -40,66 +40,67 @@ const SocketRoomsModel = require("../models/SocketRoomsModel");
 require("dotenv").config();
 
 var server = null;
-if (process.env.NODE_ENV == 'product') {
-    server = https.createServer({
-        key: fs.readFileSync('/etc/letsencrypt/live/socket.oxhain.com/privkey.pem'),
-        cert: fs.readFileSync('/etc/letsencrypt/live/socket.oxhain.com/cert.pem')
-    });
+if (process.env.NODE_ENV == "product") {
+  server = https.createServer({
+    key: fs.readFileSync("/etc/letsencrypt/live/socket.oxhain.com/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/socket.oxhain.com/cert.pem"),
+  });
 } else {
-    server = http.createServer();
+  server = http.createServer();
 }
 const io = new socketio.Server(server, {
-    cors: {
-        origin: "*",
-    }
+  cors: {
+    origin: "*",
+  },
 });
-
 module.exports = io;
 
 Main();
 async function Main() {
-    await Connection.connection();
-    io.on("connection", async (socket) => {
-        socket.on('wallets', (user_id) => {
-            checkRoomOrJoin('wallets', socket, user_id);
-            GetSpotWallet(io.sockets, user_id);
-        });
-        socket.on('assets', (user_id) => {
-            checkRoomOrJoin('assets', socket, user_id);
-            GetAssets(io.sockets, user_id);
-        });
-        socket.on('assets_overview', (user_id) => {
-            checkRoomOrJoin('assets_overview', socket, user_id);
-            GetAssetsOverView(io.sockets, user_id);
-        });
-        socket.on('derivatives', (user_id) => {
-            checkRoomOrJoin('derivatives', socket, user_id);
-            GetDerivatives(io.sockets, user_id);
-        });
+  await Connection.connection();
+  io.on("connection", async (socket) => {
+    socket.on("wallets", (user_id) => {
+      console.log("in to wallets");
+      console.log("userid", user_id);
+      checkRoomOrJoin("wallets", socket, user_id);
+      GetSpotWallet(io.sockets, user_id);
+    });
+    socket.on("assets", (user_id) => {
+      checkRoomOrJoin("assets", socket, user_id);
+      GetAssets(io.sockets, user_id);
+    });
+    socket.on("assets_overview", (user_id) => {
+      checkRoomOrJoin("assets_overview", socket, user_id);
+      GetAssetsOverView(io.sockets, user_id);
+    });
+    socket.on("derivatives", (user_id) => {
+      checkRoomOrJoin("derivatives", socket, user_id);
+      GetDerivatives(io.sockets, user_id);
+    });
 
-        socket.on('spot_open_orders', (user_id) => {
-            checkRoomOrJoin('spot_open_orders', socket, user_id);
-            SpotOpenOrders(io.sockets, user_id);
-        });
+    socket.on("spot_open_orders", (user_id) => {
+      checkRoomOrJoin("spot_open_orders", socket, user_id);
+      SpotOpenOrders(io.sockets, user_id);
+    });
 
-        socket.on('spot_order_history', (user_id) => {
-            checkRoomOrJoin('spot_order_history', socket, user_id);
-            SpotOrderHistory(io.sockets, user_id);
-        });
-        socket.on('spot_trade_history', (user_id) => {
-            checkRoomOrJoin('spot_trade_history', socket, user_id);
-            SpotTradeHistory(io.sockets, user_id);
-        });
-        socket.on('spot_funds', (user_id) => {
-            checkRoomOrJoin('spot_funds', socket, user_id);
-            SpotFunds(io.sockets, user_id);
-        });
+    socket.on("spot_order_history", (user_id) => {
+      checkRoomOrJoin("spot_order_history", socket, user_id);
+      SpotOrderHistory(io.sockets, user_id);
+    });
+    socket.on("spot_trade_history", (user_id) => {
+      checkRoomOrJoin("spot_trade_history", socket, user_id);
+      SpotTradeHistory(io.sockets, user_id);
+    });
+    socket.on("spot_funds", (user_id) => {
+      checkRoomOrJoin("spot_funds", socket, user_id);
+      SpotFunds(io.sockets, user_id);
+    });
 
-        socket.on('derivatives_wallet', (user_id) => {
-            checkRoomOrJoin('derivatives_wallet', socket, user_id);
-            DerivativesFunds(io.sockets, user_id);
-        });
-        /*
+    socket.on("derivatives_wallet", (user_id) => {
+      checkRoomOrJoin("derivatives_wallet", socket, user_id);
+      DerivativesFunds(io.sockets, user_id);
+    });
+    /*
         socket.on('margin_cross_balance', (user_id) => {
             checkRoomOrJoin('margin_cross_balance',socket, user_id);
             GetCrossWallet( io.sockets, user_id);
@@ -154,105 +155,108 @@ async function Main() {
             IsolatedFunds( io.sockets, user_id);
         });
         */
-        socket.on('future_balance', (user_id) => {
-            checkRoomOrJoin('future_balance', socket, user_id);
-            GetFutureWallet(io.sockets, user_id);
-        });
-        socket.on('future_positions', (user_id) => {
-            checkRoomOrJoin('future_positions', socket, user_id);
-            FuturePositions(io.sockets, user_id);
-        });
-        socket.on('future_open_orders', (user_id) => {
-            checkRoomOrJoin('future_open_orders', socket, user_id);
-            FutureOpenOrders(io.sockets, user_id);
-        });
-        socket.on('future_order_history', (user_id) => {
-            checkRoomOrJoin('future_order_history', socket, user_id);
-            FutureOrderHistory(io.sockets, user_id);
-        });
-        socket.on('future_trade_history', (user_id) => {
-            checkRoomOrJoin('future_trade_history', socket, user_id);
-            FutureTradeHistory(io.sockets, user_id);
-        });
-        socket.on('future_transaction_history', (user_id) => {
-            checkRoomOrJoin('future_transaction_history', socket, user_id);
-            FutureTransactionHistory(io.sockets, user_id);
-        });
-        socket.on('future_assets', (user_id) => {
-            checkRoomOrJoin('future_assets', socket, user_id);
-            FutureAssets(io.sockets, user_id);
-        });
-
-
-
-        socket.on('leave', (id) => {
-            SocketRoomsModel.deleteMany({ token: id });
-            socket.leave(id);
-        })
-
-
-        function sendData(token, header, body) {
-            io.sockets.in(token).emit(header, body);
-        }
-
+    socket.on("future_balance", (user_id) => {
+      checkRoomOrJoin("future_balance", socket, user_id);
+      GetFutureWallet(io.sockets, user_id);
     });
-}
+    socket.on("future_positions", (user_id) => {
+      checkRoomOrJoin("future_positions", socket, user_id);
+      FuturePositions(io.sockets, user_id);
+    });
+    socket.on("future_open_orders", (user_id) => {
+      checkRoomOrJoin("future_open_orders", socket, user_id);
+      FutureOpenOrders(io.sockets, user_id);
+    });
+    socket.on("future_order_history", (user_id) => {
+      checkRoomOrJoin("future_order_history", socket, user_id);
+      FutureOrderHistory(io.sockets, user_id);
+    });
+    socket.on("future_trade_history", (user_id) => {
+      checkRoomOrJoin("future_trade_history", socket, user_id);
+      FutureTradeHistory(io.sockets, user_id);
+    });
+    socket.on("future_transaction_history", (user_id) => {
+      checkRoomOrJoin("future_transaction_history", socket, user_id);
+      FutureTransactionHistory(io.sockets, user_id);
+    });
+    socket.on("future_assets", (user_id) => {
+      checkRoomOrJoin("future_assets", socket, user_id);
+      FutureAssets(io.sockets, user_id);
+    });
 
+    socket.on("leave", (id) => {
+      SocketRoomsModel.deleteMany({ token: id });
+      socket.leave(id);
+    });
+
+    function sendData(token, header, body) {
+      io.sockets.in(token).emit(header, body);
+    }
+  });
+}
 
 global.MarketData = {};
 async function fillMarketPrices() {
+  let coinList = await CoinList.find({});
 
-    let coinList = await CoinList.find({});
+  var b_ws = new WebSocket("wss://stream.binance.com/stream");
+  for (var k = 0; k < coinList.length; k++) {
+    global.MarketData[coinList[k].symbol + "USDT"] = { bid: 0.0, ask: 0.0 };
+  }
 
-    var b_ws = new WebSocket("wss://stream.binance.com/stream");
-    for (var k = 0; k < coinList.length; k++) {
-        global.MarketData[coinList[k].symbol + "USDT"] = { bid: 0.0, ask: 0.0 };
+  const initSocketMessage = {
+    method: "SUBSCRIBE",
+    params: ["!ticker@arr"],
+    // params: ["!miniTicker@arr"],
+    id: 1,
+  };
+
+  b_ws.onopen = (event) => {
+    b_ws.send(JSON.stringify(initSocketMessage));
+  };
+
+  // Reconnect connection when disconnect connection
+  b_ws.onclose = () => {
+    b_ws.send(JSON.stringify(initSocketMessage));
+  };
+  b_ws.onmessage = function (event) {
+    const data = JSON.parse(event.data).data;
+    if (data != null && data != "undefined") {
+      for (var m = 0; m < data.length; m++) {
+        let x = data[m];
+        global.MarketData[x.s] = { bid: x.b, ask: x.a };
+      }
     }
-
-    const initSocketMessage = {
-        method: "SUBSCRIBE",
-        params: ["!ticker@arr"],
-        // params: ["!miniTicker@arr"],
-        id: 1,
-    };
-
-    b_ws.onopen = (event) => {
-        b_ws.send(JSON.stringify(initSocketMessage));
-    };
-
-    // Reconnect connection when disconnect connection
-    b_ws.onclose = () => {
-        b_ws.send(JSON.stringify(initSocketMessage));
-    };
-    b_ws.onmessage = function (event) {
-        const data = JSON.parse(event.data).data;
-        if (data != null && data != "undefined") {
-            for (var m = 0; m < data.length; m++) {
-                let x = data[m];
-                global.MarketData[x.s] = { bid: x.b, ask: x.a };
-            }
-        }
-    };
+  };
 }
 
 fillMarketPrices();
 
 async function checkRoomOrJoin(process, socket, id) {
-    if (id.indexOf('-') <= 0) return;
-    let split = id.split('-');
-    let uid = split[0];
-    if (socket.rooms.has(id) == false) {
-        socket.join(id);
-    }
+  if (id.indexOf("-") <= 0) return;
+  let split = id.split("-");
+  let uid = split[0];
+  if (socket.rooms.has(id) == false) {
+    socket.join(id);
+  }
 
-    let check = await SocketRoomsModel.findOne({ user_id: uid, token: id, process: process });
-    if(check == null) {
-        let save = new SocketRoomsModel({ user_id: uid, token: id, process: process });
-        await save.save();
-    }
+  let check = await SocketRoomsModel.findOne({
+    user_id: uid,
+    token: id,
+    process: process,
+  });
+  if (check == null) {
+    let save = new SocketRoomsModel({
+      user_id: uid,
+      token: id,
+      process: process,
+    });
+    await save.save();
+    console.log("in check", save);
+  }
+  console.log("in check");
 }
 
-
 server.listen(7011, () => {
-    console.log("server is on")
+  console.log("server is on");
 });

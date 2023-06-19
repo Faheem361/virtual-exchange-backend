@@ -132,6 +132,7 @@ const corsOptions = {
   optionSuccessStatus: 200,
 };
 route.use(cors({ credentials: true, origin: "*" }));
+// route.options("*", cors());
 var port = process.env.PORT;
 
 //set limit for request body for base64 image upload
@@ -259,6 +260,9 @@ const getTopMarketGainers = require("./controllers/market/getTopMarketGainers.js
 
 const ApproveLoginRequest = require("./controllers/auth/approveLoginRequest.js");
 const GetCandleData = require("./controllers/pair/getCandleData.js");
+const getWalletBalance = require("./controllers/wallet/getWalletBalance.js");
+const getAllOrders = require("./controllers/orders/getAllOrders.js");
+const Orders = require("./models/Orders.js");
 
 route.use(
   session({
@@ -436,6 +440,7 @@ route.all("/getbalance", upload.none(), getWalletsBalance);
 route.all("/searchPosts", searchPosts);
 //Trade Modules
 route.all("/getOrders", upload.none(), getOrders);
+route.all("/getAllOrders", upload.none(), getAllOrders);
 route.post("/getClosedMarginOrders", getClosedMarginOrders);
 route.post("/getOpenMarginOrders", getOpenMarginOrders);
 route.post("/closeMarginOrder", closeMarginOrder);
@@ -513,6 +518,7 @@ route.all("/myReferralEarns", upload.none(), myReferralEarns);
 route.all("/request_campus", upload.none(), CampusRequestJoin);
 route.all("/isAmbassador", upload.none(), isAmbassador);
 route.all("/getWallet", upload.none(), getWallet);
+route.all("/getWalletCoinBalance", getWalletBalance);
 route.all("/getUserLevel", upload.none(), GetUserLevel);
 route.all("/getAllLevelReferrals", upload.none(), getAllLevelReferrals);
 route.all("/getEarningsGraphData", upload.none(), getEarningsGraphData);
@@ -619,6 +625,7 @@ route.get("/price", async function (req, res) {
 
   return res.json({ status: "fail", message: "unknow error" });
 });
+
 // const requestListener = function (req, res) {
 //   res.writeHead(200);
 //   res.end("My first server!");

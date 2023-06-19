@@ -9,6 +9,8 @@ const {
   generateFromEmail,
   generateUsername,
 } = require("unique-username-generator");
+const QRSecretCode = require("./qrCode");
+const speakeasy = require("speakeasy");
 
 const phoneNumberUtil = PhoneNumberUtil.getInstance();
 const registerController = async (req, res) => {
@@ -204,7 +206,8 @@ const registerController = async (req, res) => {
         status: 1,
       });
     }
-
+    const secret = speakeasy.generateSecret({ length: 20 });
+    newUser.twofa = secret.hex;
     let usr = await newUser.save();
     if (refStatus == "yes") {
       let user = await UserRef.findOne({ refCode: reffer }).exec();
@@ -236,7 +239,11 @@ const registerController = async (req, res) => {
     } else {
       checkPhone.save();
     }
-    return res.json({ status: "success", data: newRef });
+    return res.json({
+      status: "success",
+      showableMessage: "Successfully Registered",
+      data: newRef,
+    });
   } catch (error) {
     return res.json({
       status: "fail",
