@@ -3,7 +3,6 @@ const Wallet = require("../../../models/Wallet");
 
 const AddLimitSellOrder = async (req, res, getPair, api_result, apiRequest) => {
   let percent = parseFloat(req.body.percent);
-  let coin = parseFloat(req.body.coin);
   let target_price = parseFloat(req.body.target_price);
   let amount = parseFloat(req.body.amount);
 
@@ -29,7 +28,8 @@ const AddLimitSellOrder = async (req, res, getPair, api_result, apiRequest) => {
     });
   }
   console.log("percent", percent, target_price, getPair.symbolTwoID);
-
+  let totalAmount = 0;
+  let filteredRecords = [];
   const orders = new Orders({
     first_pair: req.body.symbolId,
     pair_name: getPair.name,

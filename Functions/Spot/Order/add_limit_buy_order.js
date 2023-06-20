@@ -31,16 +31,47 @@ const AddLimitBuyOrder = async (req, res, getPair, api_result, apiRequest) => {
     });
   }
 
+  // let search = Orders.aggregate([
+  //   // {
+  //   //   $match: {
+  //   //     target_price: { $lte: req.body.target_price },
+  //   //   },
+  //   // },
+  //   {
+  //     $group: {
+  //       _id: null,
+  //       totalAmount: { $sum: "$amount" }, // Field to sum
+  //     },
+  //   },
+  // ]).exec(function (err, result) {
+  //   if (err) {
+  //     console.error("Error executing aggregate:", err);
+  //     return;
+  //   }
+  //   console.log("result", result);
+  //   const sum = result.length > 0 ? result[0].totalAmount : 0;
+  //   console.log("Sum:", sum);
+  // });
+
+  // console.log("search", search);
+
   let totalAmount = 0;
   let filteredRecords = [];
   let checkSellOrder = await Orders.find({
     type: "limit",
     method: "sell",
+    pair_name: req.body.pair_name,
+    // first_pair: !req.body.symbolId,
     target_price: { $lte: target_price },
-    // $expr: { $gt: [{ $sum: "$tokenAmount" }, amount] },
   }).sort({ target_price: 1, createdAt: -1 });
 
-  console.log("checkSellOrder", checkSellOrder);
+  // console.log("checkSellOrder", checkSellOrder);
+  if (!checkSellOrder)
+    return res.json({
+      status: "Success",
+      showableMessage: "Selling order not found",
+      message: "sell_order_empty",
+    });
   checkSellOrder.forEach((record) => {
     if (totalAmount >= amount) {
       return;
@@ -51,56 +82,117 @@ const AddLimitBuyOrder = async (req, res, getPair, api_result, apiRequest) => {
 
   console.log("filteredRecords", filteredRecords);
 
-  console.log("rec", totalAmount);
+  // console.log("rec", totalAmount);
   let amountToremove = amount;
-  filteredRecords.forEach(async (record) => {
-    // console.log("record", record);
-    if (parseFloat(amountToremove) > parseFloat(record.amount)) {
-      amountToremove = amountToremove - record.amount;
-      // console.log("fromwallet", fromwallet);
-      // console.log(incBalance, "incBalance");
-      console.log(amountToremove, "amountToremove in if");
-      console.log("if", parseFloat(amountToremove) > parseFloat(record.amount));
-      console.log(amountToremove, record.amount);
-      var towallet = await Wallet.findOne({
-        coin_id: record.first_pair,
-        user_id: record.user_id,
-      }).exec();
-      // console.log("towallet", towallet);
-      let remBalance = towallet.amount - record.amount;
+  for (record of filteredRecords) {
+    await (async () => {
+      if (parseFloat(amountToremove) > parseFloat(record.amount)) {
+        // console.log(amountToremove, "amountToremove in if");
+        amountToremove = amountToremove - record.amount;
 
-      // console.log(remBalance, "remBalance");
-      var fromwallet = await Wallet.findOne({
-        coin_id: record.first_pair,
-        user_id: req.body.user_id,
-      }).exec();
-      let incBalance = fromwallet.amount + record.amount;
-    } else {
-      console.log("in else", amountToremove);
-      var towallet = await Wallet.findOne({
-        coin_id: record.first_pair,
-        user_id: record.user_id,
-      }).exec();
-      let remBalance = towallet.amount - amountToremove;
-      console.log("remBalance in else", remBalance);
-      var fromwallet = await Wallet.findOne({
-        coin_id: record.first_pair,
-        user_id: req.body.user_id,
-      }).exec();
-      let incBalance = fromwallet.amount + amountToremove;
-      console.log("incBalance in else", incBalance);
+        /// minus the amount from wallet
+        var fromWallet = await Wallet.findOne({
+          coin_id: record.first_pair,
+          user_id: record.user_id,
+        }).exec();
+        // console.log(
+        //   fromWallet.amount,
+        //   fromWallet.amount - record.amount,
+        //   "fromWallet"
+        // );
+        fromWallet.amount =
+          parseFloat(fromWallet.amount) - parseFloat(record.amount);
+        await fromWallet.save();
 
-      if (record.amount > amountToremove) {
-        let val = record.amount - amountToremove;
-        console.log("val to remove differnce", val);
-        // record.amount = record.amount - amountToremove;
-        // await record.save();
-        amountToremove = amountToremove - amountToremove;
+        /// add the amount to wallet
+
+        var towallet = await Wallet.findOne({
+          coin_id: record.first_pair,
+          user_id: req.body.user_id,
+        }).exec();
+        // console.log(
+        //   towallet.amount,
+        //   towallet.amount + record.amount,
+        //   "towllet"
+        // );
+        towallet.amount =
+          parseFloat(towallet.amount) + parseFloat(record.amount);
+        await towallet.save();
+
+        ////now transfer the buy coins from seller account to buyer
+        // console.log("getPair", getPair);
+        var fromWalletCoin = await Wallet.findOne({
+          coin_id: req.body.symbolId,
+          user_id: req.body.user_id,
+        }).exec();
+        // console.log(fromWalletCoin, "fromWalletCoin");
+        let totalCoinRemove =
+          parseFloat(record.amount) * parseFloat(record.target_price);
+        fromWalletCoin.amount =
+          parseFloat(fromWalletCoin.amount) - parseFloat(totalCoinRemove);
+        await fromWalletCoin.save();
+
+        var toWalletCoin = await Wallet.findOne({
+          coin_id: req.body.symbolId,
+          user_id: record.user_id,
+        }).exec();
+        // console.log(toWalletCoin, "toWalletCoin");
+        toWalletCoin.amount =
+          parseFloat(toWalletCoin.amount) + parseFloat(totalCoinRemove);
+        await toWalletCoin.save();
+      } else {
+        console.log("in else", amountToremove);
+        record.amount = parseFloat(record.amount) - parseFloat(amountToremove);
+        var fromWallet = await Wallet.findOne({
+          coin_id: record.first_pair,
+          user_id: record.user_id,
+        }).exec();
+        // console.log(
+        //   fromWallet.amount,
+        //   fromWallet.amount - amountToremove,
+        //   "fromWallet in else"
+        // );
+        fromWallet.amount =
+          parseFloat(fromWallet.amount) - parseFloat(amountToremove);
+        await fromWallet.save();
+
+        var towallet = await Wallet.findOne({
+          coin_id: record.first_pair,
+          user_id: req.body.user_id,
+        }).exec();
+        // console.log(
+        //   towallet.amount,
+        //   towallet.amount + amountToremove,
+        //   "towllet in else"
+        // );
+        towallet.amount =
+          parseFloat(towallet.amount) + parseFloat(amountToremove);
+        await towallet.save();
+
+        ////now transfer the buy coins from seller account to buyer
+        console.log("getPair", getPair);
+        var fromWalletCoin = await Wallet.findOne({
+          coin_id: req.body.symbolId,
+          user_id: req.body.user_id,
+        }).exec();
+        // console.log(fromWalletCoin, "fromWalletCoin");
+        let totalCoinRemove =
+          parseFloat(amountToremove) * parseFloat(record.target_price);
+        fromWalletCoin.amount = fromWalletCoin.amount - totalCoinRemove;
+        await fromWalletCoin.save();
+
+        var toWalletCoin = await Wallet.findOne({
+          coin_id: req.body.symbolId,
+          user_id: record.user_id,
+        }).exec();
+        // console.log(toWalletCoin, "toWalletCoin");
+        toWalletCoin.amount =
+          parseFloat(toWalletCoin.amount) + parseFloat(totalCoinRemove);
+        await toWalletCoin.save();
+        amountToremove = 0;
       }
-
-      console.log(amountToremove, "amountToremove in else");
-    }
-  });
+    })();
+  }
 
   const orders = new Orders({
     first_pair: req.body.symbolId,
@@ -114,13 +206,9 @@ const AddLimitBuyOrder = async (req, res, getPair, api_result, apiRequest) => {
     target_price: target_price,
     status: 1,
   });
-  // let saved = await orders.save();
-  let saved = true;
-
+  let saved = await orders.save();
+  // let saved = false;
   if (saved) {
-    // towallet.amount = towallet.amount - total;
-    // await towallet.save();
-
     if (api_result === false) {
       apiRequest.status = 1;
       await apiRequest.save();
