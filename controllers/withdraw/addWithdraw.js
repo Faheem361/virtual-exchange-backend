@@ -17,7 +17,11 @@ const addWithdraw = (req, res) => {
       Wallet.findOne({ user_id: user_id, coin_id: coin_id }, { amount: 1 })
         .then((list) => {
           if (list == null) {
-            res.json({ status: "fail", message: "unknow_error" });
+            res.json({
+              status: "fail",
+              wableMessage: "Nnknown error",
+              message: "unknow_error",
+            });
             return;
           }
           if (list.amount >= amount) {

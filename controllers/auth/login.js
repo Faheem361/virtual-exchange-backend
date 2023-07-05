@@ -1254,140 +1254,140 @@ const login = async (req, res) => {
         let networks = await Network.find({ status: 1 }).exec();
         console.log("networks", networks);
 
-        for (let x = 0; x < networks.length; x++) {
-          let walletAddressCheck = await WalletAddress.findOne({
-            user_id: user._id,
-            network_id: networks[x]._id,
-          }).exec();
+        // for (let x = 0; x < networks.length; x++) {
+        //   let walletAddressCheck = await WalletAddress.findOne({
+        //     user_id: user._id,
+        //     network_id: networks[x]._id,
+        //   }).exec();
 
-          if (walletAddressCheck == null) {
-            let privateKey = "";
-            let address = "";
-            if (networks[x].symbol === "ERC") {
-              let url = "http://" + process.env.ERC20HOST + "/create_address";
-              let walletTest = await axios.post(url);
-              privateKey = walletTest.data.data.privateKey;
-              address = walletTest.data.data.address;
-            }
+        //   if (walletAddressCheck == null) {
+        //     let privateKey = "";
+        //     let address = "";
+        //     if (networks[x].symbol === "ERC") {
+        //       let url = "http://" + process.env.ERC20HOST + "/create_address";
+        //       let walletTest = await axios.post(url);
+        //       privateKey = walletTest.data.data.privateKey;
+        //       address = walletTest.data.data.address;
+        //     }
 
-            console.log("networks[x].symbol", networks[x].symbol);
+        //     console.log("networks[x].symbol", networks[x].symbol);
 
-            if (networks[x].symbol === "BSC") {
-              // let url = "http://" + process.env.BSC20HOST + "/create_address";
-              // let walletTest = await axios.post(url);
-              const web3 = new Web3("https://bsc-dataseed.binance.org/");
-              let walletTest = await web3.eth.accounts.create();
-              console.log("wallet", walletTest);
-              privateKey = walletTest.privateKey;
-              address = walletTest.address;
-            }
+        //     if (networks[x].symbol === "BSC") {
+        //       // let url = "http://" + process.env.BSC20HOST + "/create_address";
+        //       // let walletTest = await axios.post(url);
+        //       const web3 = new Web3("https://bsc-dataseed.binance.org/");
+        //       let walletTest = await web3.eth.accounts.create();
+        //       console.log("wallet", walletTest);
+        //       privateKey = walletTest.privateKey;
+        //       address = walletTest.address;
+        //     }
 
-            if (networks[x].symbol === "TRC") {
-              let url = "http://" + process.env.TRC20HOST + "/create_address";
-              let walletTest = await axios.post(url);
-              privateKey = walletTest.data.data.privateKey;
-              address = walletTest.data.data.address.base58;
-            }
+        //     if (networks[x].symbol === "TRC") {
+        //       let url = "http://" + process.env.TRC20HOST + "/create_address";
+        //       let walletTest = await axios.post(url);
+        //       privateKey = walletTest.data.data.privateKey;
+        //       address = walletTest.data.data.address.base58;
+        //     }
 
-            if (networks[x].symbol === "SEGWIT") {
-              let createBTC = await axios.request({
-                method: "post",
-                url: "http://" + process.env.BTCSEQHOST,
-                data: "request=create_address",
-                headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
-                },
-              });
+        //     if (networks[x].symbol === "SEGWIT") {
+        //       let createBTC = await axios.request({
+        //         method: "post",
+        //         url: "http://" + process.env.BTCSEQHOST,
+        //         data: "request=create_address",
+        //         headers: {
+        //           "Content-Type": "application/x-www-form-urlencoded",
+        //         },
+        //       });
 
-              address = createBTC.data.message;
-            }
+        //       address = createBTC.data.message;
+        //     }
 
-            if (networks[x].symbol === "SOL") {
-              let url = "http://" + process.env.SOLANAHOST + "/create_address";
-              let walletTest = await axios.post(url);
-              privateKey = JSON.stringify(walletTest.data.data.pKey);
-              address = walletTest.data.data.address;
-            }
+        //     if (networks[x].symbol === "SOL") {
+        //       let url = "http://" + process.env.SOLANAHOST + "/create_address";
+        //       let walletTest = await axios.post(url);
+        //       privateKey = JSON.stringify(walletTest.data.data.pKey);
+        //       address = walletTest.data.data.address;
+        //     }
 
-            let walletAddress = new WalletAddress({
-              user_id: user._id,
-              network_id: networks[x]._id,
-              address: address,
-              private_key: privateKey,
-              wallet_address: address,
-            });
+        //     let walletAddress = new WalletAddress({
+        //       user_id: user._id,
+        //       network_id: networks[x]._id,
+        //       address: address,
+        //       private_key: privateKey,
+        //       wallet_address: address,
+        //     });
 
-            await walletAddress.save();
-          }
-        }
-        for (let i = 0; i < coins.length; i++) {
-          let walletResult = await WalletAddress.findOne({
-            user_id: user._id,
-            coin_id: coins[i]._id,
-          }).exec();
+        //     await walletAddress.save();
+        //   }
+        // }
+        // for (let i = 0; i < coins.length; i++) {
+        //   let walletResult = await WalletAddress.findOne({
+        //     user_id: user._id,
+        //     coin_id: coins[i]._id,
+        //   }).exec();
 
-          if (walletResult === null) {
-          } else {
-          }
+        //   if (walletResult === null) {
+        //   } else {
+        //   }
 
-          //Margin Wallet Check
-          // let margin_cross_check = await MarginCrossWallet.findOne({
-          //   user_id: user._id,
-          //   coin_id: coins[i]._id,
-          // });
-          // if (margin_cross_check == null) {
-          //   let createWallet = new MarginCrossWallet({
-          //     user_id: user._id,
-          //     coin_id: coins[i]._id,
-          //     symbol: coins[i].symbol,
-          //     amount: 0.0,
-          //     type: "margin_cross",
-          //     pnl: 0.0,
-          //     totalBonus: 0.0,
-          //     status: 1,
-          //   });
-          //   await createWallet.save();
-          // }
+        //   //Margin Wallet Check
+        //   // let margin_cross_check = await MarginCrossWallet.findOne({
+        //   //   user_id: user._id,
+        //   //   coin_id: coins[i]._id,
+        //   // });
+        //   // if (margin_cross_check == null) {
+        //   //   let createWallet = new MarginCrossWallet({
+        //   //     user_id: user._id,
+        //   //     coin_id: coins[i]._id,
+        //   //     symbol: coins[i].symbol,
+        //   //     amount: 0.0,
+        //   //     type: "margin_cross",
+        //   //     pnl: 0.0,
+        //   //     totalBonus: 0.0,
+        //   //     status: 1,
+        //   //   });
+        //   //   await createWallet.save();
+        //   // }
 
-          // let margin_isole_check = await MarginIsolatedWallet.findOne({
-          //   user_id: user._id,
-          //   coin_id: coins[i]._id,
-          // });
-          // if (margin_isole_check == null) {
-          //   let createWallet = new MarginIsolatedWallet({
-          //     user_id: user._id,
-          //     coin_id: coins[i]._id,
-          //     symbol: coins[i].symbol,
-          //     amount: 0.0,
-          //     type: "margin_isolated",
-          //     pnl: 0.0,
-          //     totalBonus: 0.0,
-          //     status: 1,
-          //   });
-          //   await createWallet.save();
-          // }
+        //   // let margin_isole_check = await MarginIsolatedWallet.findOne({
+        //   //   user_id: user._id,
+        //   //   coin_id: coins[i]._id,
+        //   // });
+        //   // if (margin_isole_check == null) {
+        //   //   let createWallet = new MarginIsolatedWallet({
+        //   //     user_id: user._id,
+        //   //     coin_id: coins[i]._id,
+        //   //     symbol: coins[i].symbol,
+        //   //     amount: 0.0,
+        //   //     type: "margin_isolated",
+        //   //     pnl: 0.0,
+        //   //     totalBonus: 0.0,
+        //   //     status: 1,
+        //   //   });
+        //   //   await createWallet.save();
+        //   // }
 
-          //End check
-          const newWallet = new Wallet({
-            name: coins[i]["name"],
-            symbol: coins[i]["symbol"],
-            user_id: user["id"],
-            amount: 0,
-            coin_id: coins[i]["id"],
-            type: "spot",
-            status: 1,
-          });
+        //   //End check
+        //   const newWallet = new Wallet({
+        //     name: coins[i]["name"],
+        //     symbol: coins[i]["symbol"],
+        //     user_id: user["id"],
+        //     amount: 0,
+        //     coin_id: coins[i]["id"],
+        //     type: "spot",
+        //     status: 1,
+        //   });
 
-          let wallets = await Wallet.findOne({
-            user_id: user["_id"],
-            coin_id: coins[i]["id"],
-          }).exec();
+        //   let wallets = await Wallet.findOne({
+        //     user_id: user["_id"],
+        //     coin_id: coins[i]["id"],
+        //   }).exec();
 
-          if (wallets == null) {
-            newWallet.save();
-          } else {
-          }
-        }
+        //   if (wallets == null) {
+        //     newWallet.save();
+        //   } else {
+        //   }
+        // }
 
         // Future Wallet Check
 

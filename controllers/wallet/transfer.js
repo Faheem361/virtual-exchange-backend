@@ -7,7 +7,11 @@ const transfer = async (req, res) => {
   var getFromDetail = await Wallet.findOne({ coin_id: from }).exec();
   var getToDetail = await Wallet.findOne({ coin_id: to }).exec();
   if (getFromDetail.amount < amount) {
-    res.json({ status: "fail", message: "insufficient_balance" });
+    res.json({
+      status: "fail",
+      showableMessage: "Insufficient Balance",
+      message: "insufficient_balance",
+    });
     return;
   }
 
@@ -23,7 +27,11 @@ const transfer = async (req, res) => {
     { amount: toBalance }
   );
 
-  res.json({ status: "success", data: { from: fromBalance, to: toBalance } });
+  res.json({
+    status: "success",
+    showableMessage: "Balance transfered",
+    data: { from: fromBalance, to: toBalance },
+  });
 };
 
 module.exports = transfer;

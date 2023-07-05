@@ -263,6 +263,13 @@ const GetCandleData = require("./controllers/pair/getCandleData.js");
 const getWalletBalance = require("./controllers/wallet/getWalletBalance.js");
 const getAllOrders = require("./controllers/orders/getAllOrders.js");
 const Orders = require("./models/Orders.js");
+const createWalletOnSpecificNetwork = require("./controllers/wallet/createWalletOnSpecificNetwork.js");
+const getNetworkWallet = require("./controllers/wallet/getWalletOnSpecificNetwork.js");
+const getCoinWallet = require("./controllers/wallet/getCoinWallet.js");
+const {
+  withdrawNative,
+  withdrawOther,
+} = require("./controllers/withdraw/withdrawCurrency.js");
 
 route.use(
   session({
@@ -421,6 +428,8 @@ route.post("/appleAuth", appleAuth);
 //Wallet Modules
 route.post("/transfer", transfer);
 route.post("/withdraw", withdraw);
+route.post("/withdrawOtherCurrency", withdrawOther);
+route.post("/withdrawNative", withdrawNative);
 
 route.post("/depositCoinList", depositCoinList);
 route.post("/depositCoinNetworkOptions", depositCoinNetworkOptions);
@@ -518,7 +527,10 @@ route.all("/myReferralEarns", upload.none(), myReferralEarns);
 route.all("/request_campus", upload.none(), CampusRequestJoin);
 route.all("/isAmbassador", upload.none(), isAmbassador);
 route.all("/getWallet", upload.none(), getWallet);
+route.all("/getNetworkWallet", getNetworkWallet);
 route.all("/getWalletCoinBalance", getWalletBalance);
+route.all("/getCoinWallet", getCoinWallet);
+route.all("/createWallet", createWalletOnSpecificNetwork);
 route.all("/getUserLevel", upload.none(), GetUserLevel);
 route.all("/getAllLevelReferrals", upload.none(), getAllLevelReferrals);
 route.all("/getEarningsGraphData", upload.none(), getEarningsGraphData);

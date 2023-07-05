@@ -30,6 +30,31 @@ const AddLimitSellOrder = async (req, res, getPair, api_result, apiRequest) => {
   console.log("percent", percent, target_price, getPair.symbolTwoID);
   let totalAmount = 0;
   let filteredRecords = [];
+
+  let checkBuyOrder = await Orders.find({
+    type: "limit",
+    method: "buy",
+    pair_name: req.body.pair_name,
+    // first_pair: !req.body.symbolId,
+    target_price: { $gte: target_price },
+  }).sort({ target_price: 1, createdAt: -1 });
+  console.log("checkBuyOrder", checkBuyOrder);
+  if (!checkBuyOrder)
+    return res.json({
+      status: "Success",
+      showableMessage: "Buying order not found",
+      message: "buy_order_empty",
+    });
+  checkBuyOrder.forEach((record) => {
+    if (totalAmount >= amount) {
+      return;
+    }
+    totalAmount += record.amount;
+    filteredRecords.push(record);
+  });
+
+  console.log("filteredRecords", filteredRecords);
+
   const orders = new Orders({
     first_pair: req.body.symbolId,
     pair_name: getPair.name,

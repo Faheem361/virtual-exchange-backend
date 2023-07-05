@@ -1,16 +1,15 @@
 const Wallet = require("../../models/Wallet");
-const Pairs = require("../../models/Pairs");
 var authFile = require("../../auth.js");
 const CoinList = require("../../models/CoinList");
 const ApiKeysModel = require("../../models/ApiKeys");
 const ApiRequest = require("../../models/ApiRequests");
 
-const getWallet = async function (req, res) {
+const getCoinWallet = async function (req, res) {
   var api_key_result = req.body.api_key;
 
   let api_result = await authFile.apiKeyChecker(api_key_result);
   let apiRequest = "";
-
+  console.log("api_result", api_result);
   if (api_result === false) {
     let checkApiKeys = "";
 
@@ -28,44 +27,44 @@ const getWallet = async function (req, res) {
       });
       await apiRequest.save();
     } else {
-      res.json({ status: "fail", message: "Forbidden 403" });
+      res.json({
+        status: "fail",
+        showableMessage: "Forbidden 403",
+        message: "Forbidden 403",
+      });
       return;
     }
   }
-
-  var _wallets = await Wallet.find({
-    user_id: req.body.user_id,
-  }).exec();
-  console.log("_wallets", _wallets.length);
+  let coinInfo = await CoinList.findOne({ _id: req.body.coin_id }).exec();
+  console.log("coinInfo", coinInfo);
+  if (coinInfo == null || coinInfo.length == 0) {
+    return res.json({
+      status: "success",
+      showableMessage: "coin not found",
+      message: "coin_not_found",
+    });
+  }
+  var _wallets = await Wallet.find(
+    {
+      user_id: req.body.user_id,
+      coin_id: coinInfo._id,
+    },
+    { private_key: 0, _id: 0 }
+  ).exec();
+  console.log("_wallets", _wallets);
   if (_wallets.length == 0)
     return res.json({
       status: "success",
       showableMessage: "no wallet found",
       message: "no_wallet_found",
     });
-  var wallets = new Array();
+  //   var wallets = {};
 
-  for (var i = 0; i < _wallets.length; i++) {
-    let item = _wallets[i];
-
-    let coinInfo = await CoinList.findOne({ _id: item.coin_id }).exec();
-
-    if (coinInfo == null) continue;
-
-    if (coinInfo.name == "Margin") continue;
-
-    wallets.push({
-      id: item._id,
-      coin_id: item.coin_id,
-      balance: item.amount,
-      symbolName: coinInfo.symbol + "/USDT",
-      symbol: coinInfo.symbol,
-      name: coinInfo.name,
-      icon: coinInfo.image_url,
-    });
-  }
-
-  res.json({ status: "success", showableMessage: "success", data: wallets });
+  res.json({
+    status: "success",
+    showableMessage: "wallet found",
+    data: _wallets,
+  });
 };
 
-module.exports = getWallet;
+module.exports = getCoinWallet;
