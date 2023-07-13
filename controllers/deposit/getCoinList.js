@@ -1,9 +1,8 @@
 const CoinList = require("../../models/CoinList");
 
-const getCoinList = (req, res) => {
-  CoinList.find({ status: 1 }).then((coins) => {
-    res.json({ status: "success", data: coins });
-  });
+const getCoinList = async (req, res) => {
+  let coins = await CoinList.find({ status: 1 }).exec();
+  res.json({ status: "success", showableMessage: "success", data: coins });
 };
 
 module.exports = getCoinList;

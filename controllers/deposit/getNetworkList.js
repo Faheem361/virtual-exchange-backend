@@ -5,8 +5,8 @@ const CoinNetworkOption = require("../../models/CoinNetworkOption");
 const Network = require("../../models/Network");
 
 const getNetworkList = (req, res) => {
-  Network.find({ status: 1 }).then((coins) => {
-    res.json({ status: "success", data: coins });
+  Network.find({ status: 1 }).then((network) => {
+    res.json({ status: "success", showableMessage: "success", data: network });
   });
 };
 

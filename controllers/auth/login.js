@@ -126,6 +126,10 @@ const login = async (req, res) => {
         email: req.body.user,
       }).exec();
       if (user) {
+        pass = await User.findOne({
+          email: req.body.user,
+        }).exec();
+        console.log("pass", utilities.hashData(pass.password));
         user = await User.findOne({
           email: req.body.user,
           password: utilities.hashData(req.body.password),

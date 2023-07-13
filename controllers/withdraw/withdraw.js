@@ -27,6 +27,7 @@ function PostRequestSync(url, data) {
 }
 
 const withdraw = async (req, res) => {
+  // console.log("req.body", req.body);
   var api_key_result = req.body.api_key;
 
   let api_result = await authFile.apiKeyChecker(api_key_result);
@@ -588,5 +589,3 @@ const withdraw = async (req, res) => {
 };
 
 module.exports = withdraw;
-
-

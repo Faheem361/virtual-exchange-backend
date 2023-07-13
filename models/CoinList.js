@@ -6,7 +6,12 @@ const CoinListSchema = new mongoose.Schema({
   symbol: { type: String, required: true },
   network: { type: String, required: true },
   contract_address: { type: String, required: false, default: null },
-  image_url: { type: String, required: false, default: null },
+  image_url: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Image",
+    required: false,
+    default: null,
+  },
   status: { type: String, required: false, default: 0 },
   createdAt: {
     type: Date,

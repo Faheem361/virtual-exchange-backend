@@ -2,7 +2,6 @@ const User = require("../models/User");
 const MailVerification = require("../models/MailVerification");
 var authFile = require("../auth.js");
 var mailer = require("../mailer.js");
-
 const sendMail = async function (req, res) {
   let newMail = "";
   if (
@@ -66,7 +65,7 @@ const sendMail = async function (req, res) {
 
         mailer.sendMail(
           newMail,
-          "Oxhain verification",
+          "Virtual verification",
           "Pin : " + pin,
           function (err, data) {
             if (err) {
@@ -98,18 +97,23 @@ const sendMail = async function (req, res) {
           showableMessage: "Mail send",
         });
       } else {
-        mailer.sendMail(
-          user["email"],
-          "Virtual verification",
-          "Pin : " + pin,
-          function (err, data) {
-            if (err) {
-              console.log("Error " + err);
-            } else {
-              console.log("sms sent");
+        console.log("in else");
+        mailer
+          .sendMail(
+            user["email"],
+            "Virtual verification",
+            "Pin : " + pin,
+            function (err, data) {
+              if (err) {
+                console.log("Error " + err);
+              } else {
+                console.log("sms sent");
+              }
             }
-          }
-        );
+          )
+          .then((response) => {
+            console.log("response", response);
+          });
         let check = await MailVerification.findOne({
           user_id: user_id,
           reason: reason,

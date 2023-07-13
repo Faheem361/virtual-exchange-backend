@@ -9,8 +9,22 @@ const express = require("express");
 var cors = require("cors");
 const http = require("http");
 const hostname = "127.0.0.1";
+const path = require("path");
+// const upload = require("./uploadMulter.js");
 //express-fileupload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "assets/uploads");
+  },
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+    );
+  },
+});
 
+const uploadImages = multer({ storage: storage });
 require("dotenv").config();
 
 // controllers
@@ -145,6 +159,7 @@ const addBonus = require("./controllers/bonus/addBonus.js");
 const addBonusType = require("./controllers/bonusTypes/addBonusType.js");
 const getBonusHistory = require("./controllers/bonus/getBonusHistory.js");
 const upload = multer();
+
 route.use(bodyParser.json());
 route.use(bodyParser.urlencoded({ extended: true }));
 const session = require("express-session");
@@ -270,6 +285,7 @@ const {
   withdrawNative,
   withdrawOther,
 } = require("./controllers/withdraw/withdrawCurrency.js");
+const { getImages, uploadImage } = require("./controllers/imageUpload.js");
 
 route.use(
   session({
@@ -438,7 +454,7 @@ route.post("/depositWalletAddress", depositWalletAddress);
 route.all("/addCoinNetworkOption", addCoinNetworkOption);
 route.all("/addNetwork", addNetwork);
 route.all("/depositNetworkList", depositNetworkList);
-route.all("/addCoin", upload.none(), addCoin);
+route.all("/addCoin", uploadImages.single("image"), addCoin);
 
 route.all("/CopyLeaderRequest", upload.none(), copyLeaderRequest);
 route.all("/getUSDTBalance", upload.none(), getUSDTBalance);
@@ -622,6 +638,9 @@ route.all("/getMarket", upload.none(), getMarket);
 route.all("/getTopMarketGainers", upload.none(), getTopMarketGainers);
 route.all("/getTopics", upload.none(), getTopics);
 route.all("/qr", QRSecretCode);
+route.get("/getImage", getImages);
+
+route.post("/uploadImage", upload.single("image"), uploadImage);
 route.get("/price", async function (req, res) {
   let symbol = req.query.symbol;
   if (symbol == null || symbol == "") {

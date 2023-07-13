@@ -10,7 +10,9 @@ const ApiKeysModel = require("../../models/ApiKeys");
 var authFile = require("../../auth.js");
 const Withdraw = require("../../models/Withdraw");
 const Wallet = require("../../models/Wallet");
-
+const MailVerification = require("../../models/MailVerification");
+const web3 = new Web3("https://data-seed-prebsc-1-s2.binance.org:8545");
+// const withdrawOther = async (req, res) => {};
 const withdrawOther = async (req, res) => {
   var user_id = req.body.user_id;
   var coin_id = req.body.coin_id;
@@ -18,7 +20,7 @@ const withdrawOther = async (req, res) => {
   var recipientAddress = req.body.toAddress;
   var amounts = req.body.amount;
   var api_key_result = req.body.api_key;
-
+  var mailPin = req.body.mailPin;
   ////checking api key auth
   let api_result = await authFile.apiKeyChecker(api_key_result);
   let apiRequest = "";
@@ -49,9 +51,24 @@ const withdrawOther = async (req, res) => {
     }
   }
 
+  if (user_id != undefined && user_id != null && user_id != "") {
+    // let checkForMailVerification = await MailVerification.findOne({
+    //   user_id: user_id,
+    //   reason: "withdraw",
+    //   pin: req.body.mailPin,
+    //   status: 0,
+    // }).exec();
+    // if (!checkForMailVerification)
+    //   return res.json({
+    //     status: "fail",
+    //     message: "verification_failed",
+    //     showableMessage: "Wrong Mail Pin",
+    //   });
+  }
   // Connect to the Binance Smart Chain testnet
-  const web3 = new Web3("https://data-seed-prebsc-1-s2.binance.org:8545");
-  const contractAddress = "0x2B0C073E7e9F18eF3502e628b46E17D94c05FBc7"; // Replace with the actual address on the testnet
+  // const web3 = new Web3("https://data-seed-prebsc-1-s2.binance.org:8545");
+
+  const contractAddress = "0x759b1Ec87ECE6756C6a6B99BC324f43D1c7Dd028"; // Replace with the actual address on the testnet
 
   const getUserWallet = await WalletAddress.findOne({
     user_id: user_id,
@@ -60,7 +77,7 @@ const withdrawOther = async (req, res) => {
   if (getUserWallet == null)
     return res.json({
       success: "success",
-      showableMessage: "User wallet not Found",
+      showableMessage: "Wallet not Found",
       message: "wallet_not_Found",
     });
   //   Your private key
@@ -73,168 +90,246 @@ const withdrawOther = async (req, res) => {
 
   tokenContractAddress = tokenContractAddress.contract_address;
   const fromAddress = getUserWallet.wallet_address;
-  const contract = new web3.eth.Contract(contractABI, contractAddress);
+  const contractOfTransfer = new web3.eth.Contract(
+    contractABI,
+    contractAddress
+  );
   const token = new web3.eth.Contract(tokenABI, tokenContractAddress);
   const amount = web3.utils.toWei(amounts.toString());
   // The method you want to call and its parameters
+  let userBalance = await getBalance(fromAddress);
+  const gasPrice = await web3.eth.getGasPrice();
+  let commission = 0.0001; ////commission set for now
+  let checkBal =
+    parseFloat(userBalance) -
+    parseFloat(web3.utils.fromWei(gasPrice)) -
+    parseFloat(commission);
+  console.log("checkBal", checkBal);
+  if (parseFloat(checkBal) <= 0) {
+    return res.json({
+      success: "success",
+      showableMessage: "balance is low",
+      message: "balance_low",
+    });
+  } else {
+    const sendSignedTransaction = async (fromAddress, contractAddress) => {
+      try {
+        const nonce = await web3.eth.getTransactionCount(
+          fromAddress,
+          "pending"
+        );
 
-  const sendSignedTransaction = async (
-    fromAddress,
-    contractAddress,
-    contractMethod
-  ) => {
-    try {
-      const nonce = await web3.eth.getTransactionCount(fromAddress, "pending");
-
-      const gasPrice = await web3.eth.getGasPrice();
-      const gasLimit = await contractMethod.estimateGas({ from: fromAddress });
-
-      const txData = {
-        nonce: web3.utils.toHex(nonce),
-        gasPrice: web3.utils.toHex(gasPrice),
-        gasLimit: web3.utils.toHex(gasLimit),
-        to: contractAddress,
-        data: contractMethod.encodeABI(),
-      };
-
-      const common = Common.forCustomChain(
-        "mainnet",
-        {
-          name: "binance",
-          networkId: 97,
-          chainId: 97,
-        },
-        "petersburg"
-      );
-      const transaction = Tx.fromTxData(txData, { common });
-      const signedTransaction = transaction.sign(privateKey);
-
-      const receipt = await web3.eth
-        .sendSignedTransaction(
-          "0x" + signedTransaction.serialize().toString("hex")
-        )
-        .on("transactionHash", (hash) => {
-          console.log("Transaction hash:", hash);
-        })
-        .on("receipt", (receipt) => {
-          // console.log("Receipt:", receipt);
-        })
-        .on("confirmation", async (confirmationNumber, receipt) => {
-          console.log("receipt", receipt);
-          // return res.json({
-          //   stauts: "success",
-          //   showableMessage: "success",
-          //   data: receipt,
-          // });
-        })
-        .on("error", (error) => {
-          console.error("Error:", error);
-          return res.json({
-            stauts: "fail",
-            showableMessage: "fail",
-            error: error,
-          });
-        })
-        .then(async (receipt) => {
-          console.log("Final receipt:", receipt.transactionHash);
-          let data = new Withdraw({
-            user_id: user_id,
-            coin_id: coin_id,
-            amount: amounts,
-            network_id: network_id,
-            to: recipientAddress,
-            fee: 0.0,
-            tx_id: receipt.transactionHash,
-            status: 1,
-          });
-
-          await data.save();
-          let fromWallet = await Wallet.findOne({
-            address: fromAddress,
-          }).exec();
-
-          fromWallet.amount =
-            parseFloat(fromWallet.amount) - parseFloat(amounts);
-
-          await fromWallet.save();
-          // let response = await NotificationTokens.findOne({
-          //   user_id: user_id,
-          // });
-          // if (response == null) {
-          // } else {
-          //   var token = response["token_id"];
-          //   var body =
-          //     "A withdraw order has been given from your account. Please wait for the admin to confirm your order.\n\n";
-          //   notifications.sendPushNotification(token, body);
-          // }
-          return res.json({
-            stauts: "success",
-            showableMessage: "success",
-            data: receipt,
-          });
+        const gasPrice = await web3.eth.getGasPrice();
+        const gasLimit = await contractMethod.estimateGas({
+          from: fromAddress,
         });
-      //   console.log("Transaction receipt:", receipt);
-    } catch (error) {
-      console.error("An error occurred while sending the transaction:", error);
-      return res.json({
-        stauts: "fail",
-        showableMessage: "forbidden 403",
-        message: "forbidden_403",
-      });
-    }
-  };
-  const approveTokens = async (contractAddress, tokenApprove) => {
-    try {
-      const nonce = await web3.eth.getTransactionCount(fromAddress, "pending");
-      console.log("nonce", nonce);
-      const gasPrice = await web3.eth.getGasPrice();
-      console.log("gasPrice", gasPrice);
+        console.log("gasLimit", gasLimit);
+        commission = web3.utils.toWei(commission.toString());
+        console.log("commission", typeof commission, commission);
+        ////checking for sender
+        let fromWallet = await Wallet.findOne({
+          address: fromAddress,
+          coin_id: coin_id,
+        }).exec();
+        console.log("from weallet", fromWallet);
+        if (fromWallet == null)
+          return res.json({
+            success: "success",
+            showableMessage: "Wallet not found",
+            message: "wallet_not_found",
+          });
+        ////checking wallet for receiver
+        console.log("recipientAddress", recipientAddress);
+        let receiverAddress = await WalletAddress.findOne({
+          wallet_address: recipientAddress,
+        }).exec();
+        console.log("receiverAddress", receiverAddress);
+        // console.log("wallet_address", receiverAddress.wallet_address);
+        if (receiverAddress == null)
+          return res.json({
+            success: "success",
+            showableMessage: "Receiver Wallet not found",
+            message: "receiver_wallet_not_found",
+          });
+        let toWallet = await Wallet.findOne({
+          user_id: receiverAddress.user_id,
+          coin_id: coin_id,
+          address: recipientAddress,
+        }).exec();
+        console.log(" toWallet", toWallet);
 
-      const gasLimit = await tokenApprove.estimateGas({ from: fromAddress });
-      console.log("gasLimit", gasLimit);
+        if (toWallet == null)
+          return res.json({
+            success: "success",
+            showableMessage: "Receiver Coin Wallet not found",
+            message: "receiver_wallet_not_found",
+          });
+        //////
+        const txData = {
+          nonce: web3.utils.toHex(nonce),
+          gasPrice: web3.utils.toHex(gasPrice),
+          gasLimit: web3.utils.toHex("2000000"),
+          to: contractAddress,
+          value: web3.utils.toHex(commission),
+          data: contractMethod.encodeABI(),
+        };
 
-      const txData = {
-        nonce: web3.utils.toHex(nonce),
-        gasPrice: web3.utils.toHex(gasPrice),
-        gasLimit: web3.utils.toHex(gasLimit) || web3.utils.toHex("2000000"),
-        to: tokenContractAddress,
-        data: tokenApprove.encodeABI(),
-      };
+        const common = Common.forCustomChain(
+          "mainnet",
+          {
+            name: "binance",
+            networkId: 97,
+            chainId: 97,
+          },
+          "petersburg"
+        );
+        const transaction = Tx.fromTxData(txData, { common });
+        const signedTransaction = transaction.sign(privateKey);
 
-      const common = Common.forCustomChain(
-        "mainnet",
-        {
-          name: "binance",
-          networkId: 97,
-          chainId: 97,
-        },
-        "petersburg"
-      );
-      const transaction = Tx.fromTxData(txData, { common });
-      const signedTransaction = transaction.sign(privateKey);
+        const receipt = await web3.eth
+          .sendSignedTransaction(
+            "0x" + signedTransaction.serialize().toString("hex")
+          )
+          .on("transactionHash", (hash) => {
+            console.log("Transaction hash:", hash);
+          })
+          .on("receipt", (receipt) => {
+            console.log("Receipt:", receipt);
+          })
+          .on("confirmation", async (confirmationNumber, receipt) => {
+            console.log("receipt on confirmation", receipt);
+          })
+          .on("error", (error) => {
+            console.error("Error:", error);
+            return res.json({
+              stauts: "fail",
+              showableMessage: "fail",
+              error: error,
+            });
+          })
+          .then(async (receipt) => {
+            console.log("Final receipt:", receipt.transactionHash);
+            let data = new Withdraw({
+              user_id: user_id,
+              coin_id: coin_id,
+              amount: amounts,
+              network_id: network_id,
+              to: recipientAddress,
+              fee: 0.0,
+              tx_id: receipt.transactionHash,
+              status: 1,
+            });
 
-      const receipt = await web3.eth.sendSignedTransaction(
-        "0x" + signedTransaction.serialize().toString("hex")
-      );
+            await data.save();
 
-      console.log("Transaction receipt:", receipt);
-    } catch (error) {
-      console.error("An error occurred while sending the transaction:", error);
-    }
-  };
+            fromWallet.amount =
+              parseFloat(fromWallet.amount) - parseFloat(amounts);
 
-  ///approve
-  const tokenApprove = token.methods.approve(contractAddress, amount);
-  await approveTokens(contractAddress, tokenApprove);
+            await fromWallet.save();
 
-  ////send tokens
-  const contractMethod = contract.methods.takeAssets(
-    tokenContractAddress,
-    fromAddress,
-    recipientAddress,
-    amount
-  );
-  await sendSignedTransaction(fromAddress, contractAddress, contractMethod);
+            // console.log("toWallet", toWallet);
+            toWallet.amount = parseFloat(toWallet.amount) + parseFloat(amounts);
+            await toWallet.save();
+
+            await MailVerification.findOneAndUpdate(
+              {
+                user_id: user_id,
+                reason: "withdraw",
+                status: 0,
+              },
+              { status: 1 }
+            ).exec();
+
+            return res.json({
+              stauts: "success",
+              showableMessage: "success",
+              data: receipt,
+            });
+          });
+      } catch (error) {
+        console.error(
+          "An error occurred while sending the transaction:",
+          error
+        );
+        return res.json({
+          stauts: "fail",
+          showableMessage: "forbidden 403",
+          message: "forbidden_403",
+        });
+      }
+    };
+    const approveTokens = async (contractAddress, tokenApprove) => {
+      try {
+        const nonce = await web3.eth.getTransactionCount(
+          fromAddress,
+          "pending"
+        );
+        console.log("nonce", nonce);
+        const gasPrice = await web3.eth.getGasPrice();
+        console.log("gasPrice", gasPrice);
+
+        const gasLimit = await tokenApprove.estimateGas({ from: fromAddress });
+        console.log("gasLimit", gasLimit);
+
+        const txData = {
+          nonce: web3.utils.toHex(nonce),
+          gasPrice: web3.utils.toHex(gasPrice),
+          gasLimit: web3.utils.toHex(gasLimit) || web3.utils.toHex("2000000"),
+          to: tokenContractAddress,
+          data: tokenApprove.encodeABI(),
+        };
+
+        const common = Common.forCustomChain(
+          "mainnet",
+          {
+            name: "binance",
+            networkId: 97,
+            chainId: 97,
+          },
+          "petersburg"
+        );
+        const transaction = Tx.fromTxData(txData, { common });
+        const signedTransaction = transaction.sign(privateKey);
+
+        const receipt = await web3.eth
+          .sendSignedTransaction(
+            "0x" + signedTransaction.serialize().toString("hex")
+          )
+          .on("receipt", (receipt) => {
+            // console.log("Receipt:", receipt);
+          })
+          .then((response) => {
+            console.log("response of token approve", response);
+            return;
+          });
+
+        // console.log("Transaction receipt:", receipt);
+      } catch (error) {
+        console.error(
+          "An error occurred while sending the transaction:",
+          error
+        );
+      }
+    };
+
+    //////
+    // const tokenApprove = contract.methods.getUserBalance(fromAddress);
+
+    ///approve
+    const tokenApprove = token.methods.approve(contractAddress, amount);
+    await approveTokens(contractAddress, tokenApprove);
+
+    ////send tokens
+    const contractMethod = contractOfTransfer.methods.takeAssets(
+      tokenContractAddress,
+      fromAddress,
+      recipientAddress,
+      amount
+    );
+    const gasLimit = await contractMethod.estimateGas({ from: fromAddress });
+    console.log("gasLimit before function call", gasLimit);
+    await sendSignedTransaction(fromAddress, contractAddress, contractMethod);
+  }
 };
 
 ///withdraw native currency
@@ -270,16 +365,33 @@ const withdrawNative = async (req, res) => {
     } else {
       res.json({
         status: "fail",
-        showableMessage: "Forbidden 403",
+        showableMessage: "Forbidden 403 ddddd",
         message: "Forbidden_403",
       });
       return;
     }
   }
 
+  // if (user_id != undefined && user_id != null && user_id != "") {
+  //   let checkForMailVerification = await MailVerification.findOne({
+  //     user_id: user_id,
+  //     reason: "withdraw",
+  //     pin: req.body.mailPin,
+  //     status: 0,
+  //   }).exec();
+
+  //   if (!checkForMailVerification)
+  //     return res.json({
+  //       status: "fail",
+  //       message: "verification_failed",
+  //       showableMessage: "Wrong Mail Pin",
+  //     });
+  // }
+
   // Connect to the Binance Smart Chain testnet
-  const web3 = new Web3("https://data-seed-prebsc-1-s2.binance.org:8545");
-  const contractAddress = "0x2B0C073E7e9F18eF3502e628b46E17D94c05FBc7"; // Replace with the actual address on the testnet
+  // const web3 = new Web3("https://data-seed-prebsc-1-s2.binance.org:8545");
+  // const contractAddress = "0x02f643026bb22B8b7E6E381B0D346108E4A17B8B"; // Replace with the actual address on the testnet
+  const contractAddress = "0x759b1Ec87ECE6756C6a6B99BC324f43D1c7Dd028"; // Replace with the actual address on the testnet
 
   const getUserWallet = await WalletAddress.findOne({
     user_id: user_id,
@@ -304,92 +416,224 @@ const withdrawNative = async (req, res) => {
   //     "0xa789761db2289fc2bd7838ae42bffb3c399beab6dc9ed3a942a695804da66152";
   // The contract's ABI and the testnet address
   // Replace with the actual ABI
-  //   const contractAddress = "0xb7D1469E57a5eFED4aE95DF557DfE9De65a310De"; // Replace with the actual address on the testnet
+  //   const contractAddress = "0xd37186f4d5C523462B103cc9B1457F93D4cEae58"; // Replace with the actual address on the testnet
   //   const recipientAddress = "0x0c661FB2512B66B40668b057395869A48Cf2606c";
 
   // Create a contract instance
   //   const tokenContractAddress = "0x8AfA5fc45241A53dE2a09D00BaA580Daf2506ad5"; ///zift token  88471.27684
-  const fromAddress = getUserWallet.wallet_address;
-  const contract = new web3.eth.Contract(contractABI, contractAddress);
-  const token = new web3.eth.Contract(tokenABI, tokenContractAddress);
-  const amount = web3.utils.toWei(amounts.toString());
+  const contractOfTransfer = new web3.eth.Contract(
+    contractABI,
+    contractAddress
+  );
+
   // The method you want to call and its parameters
+  let commission = 0.000001; ////commission set for now
 
-  const sendSignTransaction = async (
-    fromAddress,
-    contractAddress,
-    contractMethod
-  ) => {
+  const sendSignTransaction = async (fromAddress) => {
     try {
+      console.log("into send singnature");
       const nonce = await web3.eth.getTransactionCount(fromAddress, "pending");
+      console.log("nonce", nonce);
+
       const gasPrice = await web3.eth.getGasPrice();
-      const gasLimit = await contractMethod.estimateGas({ from: fromAddress });
-      const txData = {
-        nonce: nonce,
-        gasPrice: web3.utils.toHex(gasPrice),
-        gasLimit: web3.utils.toHex(gasLimit),
-        to: recipientAddress,
-        from: fromAddress,
-        value: web3.utils.toHex(amount),
-        data: contractMethod.encodeABI(),
-      };
+      console.log("gasPrice", gasPrice);
 
-      const common = Common.forCustomChain(
-        "mainnet",
-        {
-          name: "testnet",
-          networkId: 97,
-          chainId: 97,
-        },
-        "petersburg"
-      );
-      const transaction = Tx.fromTxData(txData, { common });
-      const signedTransaction = transaction.sign(privateKey);
-
-      const receipt = await web3.eth
-        .sendSignedTransaction(
-          "0x" + signedTransaction.serialize().toString("hex")
-        )
-        .on("transactionHash", (hash) => {
-          console.log("Transaction hash:", hash);
-        })
-        .on("receipt", (receipt) => {
-          console.log("Receipt:", receipt);
-        })
-        .on("confirmation", (confirmationNumber, receipt) => {
-          console.log("confirmationNumber:", confirmationNumber);
-        })
-        .on("error", (error) => {
-          console.error("Error:", error);
-          return res.json({
-            stauts: "success",
-            showableMessage: "Error",
-            data: error,
-          });
-        })
-        .then(async (receipt) => {
-          console.log("Final receipt:", receipt);
-          let data = new Withdraw({
-            user_id: user_id,
-            coin_id: coin_id,
-            amount: amounts,
-            network_id: network_id,
-            to: recipientAddress,
-            fee: 0.0,
-            tx_id: receipt.transactionHash,
-            status: 1,
-          });
-
-          await data.save();
-          let fromWallet = await Wallet.findOne({
-            address: fromAddress,
-          }).exec();
-
-          fromWallet.amount =
-            parseFloat(fromWallet.amount) - parseFloat(amounts);
-
-          await fromWallet.save();
+      let total = parseFloat(amounts) + parseFloat(commission);
+      console.log(total, "total");
+      // const amount = web3.utils.toWei(amounts.toString());
+      total = total.toFixed(10).toString();
+      let userBalance = await getBalance(fromAddress);
+      // console.log("userbalance", userBalance);
+      let checkBal =
+        parseFloat(userBalance) -
+        parseFloat(web3.utils.fromWei(gasPrice)) -
+        parseFloat(commission);
+      // console.log("checkBal", checkBal);
+      if (parseFloat(checkBal) <= 0) {
+        return res.json({
+          success: "success",
+          showableMessage: "balance is low",
+          message: "balance_low",
         });
+      }
+      // console.log(contractOfTransfer, "contractOfTransfer");
+      // console.log(recipientAddress, "recipientAddress");
+      // console.log(fromAddress, "fromAddress");
+      console.log("total in native", total);
+      console.log(
+        "amount",
+        web3.utils.toWei(req.body.amount.toString(), "ether")
+      );
+      let gasLimit = await contractOfTransferIn.methods
+        .curTransfer(recipientAddress, com)
+        .estimateGas({
+          from: fromAddress,
+          value: web3.utils.toWei(total.toString(), "ether"),
+        });
+      let resss = await contractOfTransferIn.methods
+        .curTransfer(recipientAddress, com)
+        .send({
+          from: fromAddress,
+          gas: gasLimit,
+          gasPrice: web3.utils.toWei("15", "gwei"),
+          value: web3.utils.toWei(total.toString(), "ether"),
+        });
+      return res.json({
+        success: "success",
+        showableMessage: "success",
+        data: resss,
+      });
+      // .then(async (response) => {
+      //   console.log("response", response);
+      //   // let data = new Withdraw({
+      //   //   user_id: user_id,
+      //   //   coin_id: coin_id,
+      //   //   amount: amounts,
+      //   //   network_id: network_id,
+      //   //   to: recipientAddress,
+      //   //   fee: 0.0,
+      //   //   tx_id: response.transactionHash,
+      //   //   status: 1,
+      //   // });
+
+      //   // await data.save();
+      //   let fromWallet = await Wallet.findOne({
+      //     user_id: user_id,
+      //     coin_id: coin_id,
+      //   }).exec();
+
+      //   fromWallet.amount =
+      //     parseFloat(fromWallet.amount) - parseFloat(amounts);
+
+      //   // await fromWallet.save();
+
+      //   // let receiverAddress = await WalletAddress.findOne({
+      //   //   wallet_address: recipientAddress,
+      //   // });
+      //   // console.log("receiverAddress", receiverAddress);
+      //   // console.log("wallet_address", receiverAddress.wallet_address);
+      //   // let toWallet = await Wallet.findOne({
+      //   //   user_id: receiverAddress.wallet_address,
+      //   //   coin_id: coin_id,
+      //   // }).exec();
+      //   // console.log("toWallet", toWallet);
+      //   // toWallet.amount = parseFloat(toWallet.amount) + parseFloat(amounts);
+      //   // await toWallet.save();
+
+      //   await MailVerification.findOneAndUpdate(
+      //     {
+      //       user_id: user_id,
+      //       reason: "withdraw",
+      //       status: 0,
+      //     },
+      //     { status: 1 }
+      //   ).exec();
+
+      //   return res.json({
+      //     stauts: "success",
+      //     showableMessage: "success",
+      //     data: response,
+      //   });
+      // })
+      // .catch((error) => {
+      //   return res.json({
+      //     stauts: "fail",
+      //     showableMessage: "fail",
+      //   });
+      // });
+
+      // const txData = {
+      //   nonce: nonce,
+      //   gasPrice: web3.utils.toHex(gasPrice),
+      //   gasLimit: web3.utils.toHex(gasLimit),
+      //   to: recipientAddress,
+      //   from: fromAddress,
+      //   value: web3.utils.toHex(total),
+      //   data: contractMetho.encodeABI(),
+      // };
+      // console.log("txData", txData);
+      // const common = Common.forCustomChain(
+      //   "mainnet",
+      //   {
+      //     name: "binance",
+      //     networkId: 97,
+      //     chainId: 97,
+      //   },
+      //   "petersburg"
+      // );
+      // const transaction = Tx.fromTxData(txData, { common });
+      // const signedTransaction = transaction.sign(privateKey);
+
+      // const receipt = await web3.eth
+      //   .sendSignedTransaction(
+      //     "0x" + signedTransaction.serialize().toString("hex")
+      //   )
+      //   .on("transactionHash", (hash) => {
+      //     console.log("Transaction hash:", hash);
+      //   })
+      //   .on("receipt", (receipt) => {
+      //     console.log("Receipt:", receipt);
+      //   })
+      //   .on("error", (error) => {
+      //     console.error("Error:", error);
+      //     return res.json({
+      //       stauts: "success",
+      //       showableMessage: "Error",
+      //       data: error,
+      //     });
+      //   })
+      //   .then(async (receipt) => {
+      //     console.log("Final receipt:", receipt);
+      //     let data = new Withdraw({
+      //       user_id: user_id,
+      //       coin_id: coin_id,
+      //       amount: amounts,
+      //       network_id: network_id,
+      //       to: recipientAddress,
+      //       fee: 0.0,
+      //       tx_id: receipt.transactionHash,
+      //       status: 1,
+      //     });
+
+      //     await data.save();
+      //     let fromWallet = await Wallet.findOne({
+      //       user_id: user_id,
+      //       coin_id: coin_id,
+      //     }).exec();
+
+      //     fromWallet.amount =
+      //       parseFloat(fromWallet.amount) - parseFloat(amounts);
+
+      //     await fromWallet.save();
+
+      //     // let receiverAddress = await WalletAddress.findOne({
+      //     //   wallet_address: recipientAddress,
+      //     // });
+      //     // console.log("receiverAddress", receiverAddress);
+      //     // console.log("wallet_address", receiverAddress.wallet_address);
+      //     // let toWallet = await Wallet.findOne({
+      //     //   user_id: receiverAddress.wallet_address,
+      //     //   coin_id: coin_id,
+      //     // }).exec();
+      //     // console.log("toWallet", toWallet);
+      //     // toWallet.amount = parseFloat(toWallet.amount) + parseFloat(amounts);
+      //     // await toWallet.save();
+
+      //     await MailVerification.findOneAndUpdate(
+      //       {
+      //         user_id: user_id,
+      //         reason: "withdraw",
+      //         status: 0,
+      //       },
+      //       { status: 1 }
+      //     ).exec();
+
+      //     return res.json({
+      //       stauts: "success",
+      //       showableMessage: "success",
+      //       data: receipt,
+      //     });
+      //   });
       //   console.log("Transaction receipt:", receipt);
     } catch (error) {
       console.error("An error occurred while sending the transaction:", error);
@@ -401,13 +645,63 @@ const withdrawNative = async (req, res) => {
     }
   };
 
-  ////send tokens
-  const options = amount;
-  const contractMethod = contract.methods.curTransfer(
-    recipientAddress
-    // options
+  let com = web3.utils.toWei(commission.toString());
+  console.log("com", com);
+  const contractOfTransferIn = new web3.eth.Contract(
+    contractABI,
+    contractAddress
   );
-  await sendSignTransaction(fromAddress, contractAddress, contractMethod);
+  ////send tokens
+
+  // const contractMetho = contractOfTransferIn.methods.curTransfer(
+  //   recipientAddress,
+  //   com
+  // );
+  const account = web3.eth.accounts.privateKeyToAccount(
+    getUserWallet.private_key
+  );
+  web3.eth.accounts.wallet.add(account);
+  web3.eth.defaultAccount = account.address;
+  let fromAddress = account.address;
+
+  // let gasLimut = await contractOfTransferIn.methods
+  //   .curTransfer(recipientAddress, com)
+  //   .estimateGas({
+  //     from: NewfromAddress,
+  //     value: web3.utils.toWei(newC.toString(), "ether"),
+  //   });
+  // contractOfTransferIn.methods
+  //   .curTransfer(recipientAddress, com)
+  //   .send({
+  //     from: NewfromAddress,
+  //     gas: gasLimut,
+  //     gasPrice: web3.utils.toWei("15", "gwei"),
+  //     value: web3.utils.toWei(req.body.amount.toString(), "ether"),
+  //   })
+  //   .then((response) => {});
+  // console.log("ccc", cccc);
+  // const gasLimit = await contractMetho.estimateGas({ from: fromAddress });
+  // .then((response) => {
+  //   console.log("response", response);
+  //   return response;
+  // })
+  // .catch((error) => {
+  //   console.log(error);
+  //   return;
+  // });
+  // console.log("gasLimit before function call", gasLimit);
+  await sendSignTransaction(fromAddress);
+};
+
+const getBalance = async (address) => {
+  try {
+    let balance = await web3.eth.getBalance(address);
+
+    console.log("Balance:", web3.utils.fromWei(balance, "ether"), "ETH");
+    return web3.utils.fromWei(balance, "ether");
+  } catch (error) {
+    console.error("An error occurred while sending the transaction:", error);
+  }
 };
 
 module.exports = { withdrawOther, withdrawNative };

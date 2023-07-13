@@ -44,11 +44,10 @@ async function parseCoins(coins, amounts) {
     let select = amounts.filter((amount) => amount.coin_id == a._id);
     if (select != null && select.length > 0) {
       let usdValue = 0;
-      if (a.name != 'USDT') {
+      if (a.name != "USDT") {
         if (select[0].amount > 0)
           usdValue = await calcCoinValue(a.symbol, select[0].amount);
-        else
-          usdValue = 0;
+        else usdValue = 0;
       } else {
         usdValue = select[0].amount;
       }
@@ -56,17 +55,17 @@ async function parseCoins(coins, amounts) {
       a.usdValue = splitLengthNumber(usdValue);
     }
     parsedCoins.push(a);
-
   }
   return parsedCoins;
-
 }
 
 const calcCoinValue = async (coin, amount) => {
-  let priceInfo = await axios("http://global.oxhain.com:8542/price?symbol=" + coin + "USDT");
+  let priceInfo = await axios(
+    "http://global.oxhain.com:8542/price?symbol=" + coin + "USDT"
+  );
   let price = priceInfo.data.data.ask;
   return price * amount;
-}
+};
 
 const getCoinList = async function (req, res) {
   var api_key_result = req.body.api_key;
@@ -75,17 +74,27 @@ const getCoinList = async function (req, res) {
   var result = await authFile.apiKeyChecker(api_key_result);
 
   if (result === true) {
-    var coins = await CoinList.find({}).exec();
+    var coins = await CoinList.find({ status: 1 })
+      .populate({ path: "image_url", model: "Image" })
+      .exec();
+    console.log("coins", coins);
 
     let amounst = await Wallet.find({ user_id: user_id });
     let result = await parseCoins(coins, amounst);
-    res.json({ status: "success", data: result });
+
+    res.json({ status: "success", showableMessage: "success", data: result });
   } else {
-    res.json({ status: "fail", message: "Forbidden 403" });
+    res.json({
+      status: "fail",
+      showableMessage: "Forbidden 403",
+      message: "Forbidden 403",
+    });
   }
 };
 function splitLengthNumber(q) {
-  return q.toString().length > 10 ? parseFloat(q.toString().substring(0, 10)) : q;
+  return q.toString().length > 10
+    ? parseFloat(q.toString().substring(0, 10))
+    : q;
 }
 
 module.exports = getCoinList;

@@ -3,6 +3,8 @@ var authFile = require("../../auth.js");
 const CoinList = require("../../models/CoinList");
 const ApiKeysModel = require("../../models/ApiKeys");
 const ApiRequest = require("../../models/ApiRequests");
+const Network = require("../../models/Network");
+const WalletAddress = require("../../models/WalletAddress");
 
 const getCoinWallet = async function (req, res) {
   var api_key_result = req.body.api_key;
@@ -35,6 +37,25 @@ const getCoinWallet = async function (req, res) {
       return;
     }
   }
+
+  let networkCheck = await Network.findOne({ _id: req.body.network_id }).exec();
+  console.log("networkCheck", networkCheck);
+  if (!networkCheck)
+    return res.json({
+      success: "success",
+      showableMessage: "network not found",
+      message: "network_not_found",
+    });
+  let walletOfNetwork = await WalletAddress.findOne({
+    network_id: req.body.network_id,
+    user_id: req.body.user_id,
+  });
+  if (!walletOfNetwork)
+    return res.json({
+      success: "success",
+      showableMessage: "Wallet not found",
+      message: "wallet_not_found",
+    });
   let coinInfo = await CoinList.findOne({ _id: req.body.coin_id }).exec();
   console.log("coinInfo", coinInfo);
   if (coinInfo == null || coinInfo.length == 0) {
@@ -55,14 +76,14 @@ const getCoinWallet = async function (req, res) {
   if (_wallets.length == 0)
     return res.json({
       status: "success",
-      showableMessage: "no wallet found",
-      message: "no_wallet_found",
+      showableMessage: "Wallet not found",
+      message: "wallet_not_found",
     });
   //   var wallets = {};
 
   res.json({
     status: "success",
-    showableMessage: "wallet found",
+    showableMessage: "Wallet found",
     data: _wallets,
   });
 };
