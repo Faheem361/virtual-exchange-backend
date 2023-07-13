@@ -39,7 +39,7 @@ const getNetworkWallet = async function (req, res) {
     },
     { _id: 0, private_key: 0 }
   ).exec();
-  console.log("_wallets", _wallets);
+  console.log("_wallets in specific", _wallets);
 
   res.json({ status: "success", showableMessage: "success", data: _wallets });
 };

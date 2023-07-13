@@ -53,7 +53,7 @@ const deleteRegisteredAddress = require("./controllers/registeredAddress/deleteR
 const addNotification = require("./controllers/addNotification");
 const getNotification = require("./controllers/getNotification");
 const getOrders = require("./controllers/orders/getOrders");
-const getUSDTBalance = require("./controllers/wallet/getUSDTBalance");
+const getNativeBalance = require("./controllers/wallet/getNativeBalance.js");
 const getPairs = require("./controllers/pair/getPairs");
 const addPair = require("./controllers/pair/addPair");
 const getDigits = require("./controllers/pair/getDigits");
@@ -457,7 +457,7 @@ route.all("/depositNetworkList", depositNetworkList);
 route.all("/addCoin", uploadImages.single("image"), addCoin);
 
 route.all("/CopyLeaderRequest", upload.none(), copyLeaderRequest);
-route.all("/getUSDTBalance", upload.none(), getUSDTBalance);
+route.all("/getNativeBalance", upload.none(), getNativeBalance);
 //balance Modules
 
 route.all("/getbalance", upload.none(), getWalletsBalance);

@@ -100,16 +100,12 @@ const withdrawOther = async (req, res) => {
   let userBalance = await getBalance(fromAddress);
   const gasPrice = await web3.eth.getGasPrice();
 
-  let commission = 0.001; ////commission set for now
-  let result = parseInt(amounts / 1000);
-  result += 1;
-  // let commission = 0.000001; ////commission set for now
-  commission = commission * result; ////commission set for now
+  let commission = 0.0001; ////commission set for now
   let checkBal =
     parseFloat(userBalance) -
     parseFloat(web3.utils.fromWei(gasPrice)) -
     parseFloat(commission);
-
+  console.log("checkBal", checkBal);
   if (parseFloat(checkBal) <= 0) {
     return res.json({
       success: "success",
@@ -128,12 +124,15 @@ const withdrawOther = async (req, res) => {
         const gasLimit = await contractMethod.estimateGas({
           from: fromAddress,
         });
+        console.log("gasLimit", gasLimit);
         commission = web3.utils.toWei(commission.toString());
+        console.log("commission", typeof commission, commission);
         ////checking for sender
         let fromWallet = await Wallet.findOne({
           address: fromAddress,
           coin_id: coin_id,
         }).exec();
+        console.log("from weallet", fromWallet);
         if (fromWallet == null)
           return res.json({
             success: "success",
@@ -141,6 +140,7 @@ const withdrawOther = async (req, res) => {
             message: "wallet_not_found",
           });
         ////checking wallet for receiver
+        console.log("recipientAddress", recipientAddress);
         let receiverAddress = await WalletAddress.findOne({
           wallet_address: recipientAddress,
         }).exec();
@@ -366,7 +366,7 @@ const withdrawNative = async (req, res) => {
     } else {
       res.json({
         status: "fail",
-        showableMessage: "Forbidden 403",
+        showableMessage: "Forbidden 403 ddddd",
         message: "Forbidden_403",
       });
       return;
@@ -429,58 +429,12 @@ const withdrawNative = async (req, res) => {
 
   // The method you want to call and its parameters
   let commission = 0.001; ////commission set for now
-  console.log(
-    "parseFloat(amounts) > 0",
-    parseFloat(amounts) > 999,
-    parseFloat(amounts)
-  );
-
-  if (parseFloat(amounts) > 999) {
-    let result = parseInt(amounts / 1000);
-    console.log("result", result);
-    result += 1;
-    // let commission = 0.000001; ////commission set for now
-    commission = commission * result;
-    console.log(commission, "commission");
-  }
-  console.log(commission, "commission");
-
-  let fromWallet = await Wallet.findOne({
-    address: getUserWallet.wallet_address,
-    coin_id: coin_id,
-    coinName: "BNB",
-  }).exec();
-  if (fromWallet == null)
-    return res.json({
-      success: "success",
-      showableMessage: "Wallet not found",
-      message: "wallet_not_found",
-    });
-  ////checking wallet for receiver
-  let receiverAddress = await WalletAddress.findOne({
-    wallet_address: recipientAddress,
-  }).exec();
-  console.log("receiverAddress", receiverAddress);
-  // console.log("wallet_address", receiverAddress.wallet_address);
-  if (receiverAddress == null)
-    return res.json({
-      success: "success",
-      showableMessage: "Receiver Wallet not found",
-      message: "receiver_wallet_not_found",
-    });
-  let toWallet = await Wallet.findOne({
-    user_id: receiverAddress.user_id,
-    coin_id: coin_id,
-    address: recipientAddress,
-  }).exec();
-  console.log(" toWallet", toWallet);
-
-  if (toWallet == null)
-    return res.json({
-      success: "success",
-      showableMessage: "Receiver Coin Wallet not found",
-      message: "receiver_wallet_not_found",
-    });
+  let result = parseInt(amounts / 1000);
+  console.log("result", result);
+  result += 1;
+  // let commission = 0.000001; ////commission set for now
+  commission = commission * result;
+  console.log("commission", commission);
 
   const sendSignTransaction = async (fromAddress) => {
     try {
@@ -491,17 +445,17 @@ const withdrawNative = async (req, res) => {
       const gasPrice = await web3.eth.getGasPrice();
       console.log("gasPrice", gasPrice);
 
-      let total =
-        parseFloat(amounts) +
-        parseFloat(commission) +
-        parseFloat(web3.utils.fromWei(gasPrice));
+      let total = parseFloat(amounts) + parseFloat(commission);
       console.log(total, "total");
       // const amount = web3.utils.toWei(amounts.toString());
       total = total.toFixed(10).toString();
       let userBalance = await getBalance(fromAddress);
       // console.log("userbalance", userBalance);
-      let checkBal = parseFloat(userBalance) - total;
-      console.log("checkBal", checkBal);
+      let checkBal =
+        parseFloat(userBalance) -
+        parseFloat(web3.utils.fromWei(gasPrice)) -
+        parseFloat(commission);
+      // console.log("checkBal", checkBal);
       if (parseFloat(checkBal) <= 0) {
         return res.json({
           success: "success",
@@ -513,10 +467,10 @@ const withdrawNative = async (req, res) => {
       // console.log(recipientAddress, "recipientAddress");
       // console.log(fromAddress, "fromAddress");
       console.log("total in native", total);
-      // console.log(
-      //   "amount",
-      //   web3.utils.toWei(req.body.amount.toString(), "ether")
-      // );
+      console.log(
+        "amount",
+        web3.utils.toWei(req.body.amount.toString(), "ether")
+      );
       let gasLimit = await contractOfTransferIn.methods
         .curTransfer(recipientAddress, com)
         .estimateGas({
@@ -528,43 +482,9 @@ const withdrawNative = async (req, res) => {
         .send({
           from: fromAddress,
           gas: gasLimit,
-          gasPrice: web3.utils.toWei(gasPrice, "gwei"),
+          gasPrice: web3.utils.toWei("15", "gwei"),
           value: web3.utils.toWei(total.toString(), "ether"),
         });
-      let data = new Withdraw({
-        user_id: user_id,
-        coin_id: coin_id,
-        amount: amounts,
-        network_id: network_id,
-        to: recipientAddress,
-        fee: commission,
-        tx_id: resss.transactionHash,
-        status: 1,
-      });
-      // await data.save();
-      let fromWallet = await Wallet.findOne({
-        user_id: user_id,
-        coin_id: coin_id,
-      }).exec();
-      let updatedAmount = parseFloat(fromWallet.amount) - parseFloat(total);
-      console.log("updatedAmount", updatedAmount);
-      fromWallet.amount = updatedAmount;
-      // console.log(
-      //   "fromWallet amount after",
-      //   parseFloat(fromWallet.amount) - parseFloat(total)
-      // );
-      await fromWallet.save();
-      console.log("toWallet", toWallet);
-      toWallet.amount = parseFloat(toWallet.amount) + parseFloat(amounts);
-      await toWallet.save();
-      await MailVerification.findOneAndUpdate(
-        {
-          user_id: user_id,
-          reason: "withdraw",
-          status: 0,
-        },
-        { status: 1 }
-      ).exec();
       return res.json({
         success: "success",
         showableMessage: "success",
@@ -778,8 +698,6 @@ const withdrawNative = async (req, res) => {
   // });
   // console.log("gasLimit before function call", gasLimit);
   await sendSignTransaction(fromAddress);
-  // let getNativeBalance = await getBalance(fromAddress);
-  // console.log("getNativeBalance", getNativeBalance);
 };
 
 const getBalance = async (address) => {
